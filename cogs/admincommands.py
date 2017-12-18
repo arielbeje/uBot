@@ -56,6 +56,18 @@ class adminCommands:
         em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
+    @commands.command(name="setplaying")
+    @commands.has_any_role(*variables["modroles"])
+    async def setPlaying(game: str=None):
+        '''
+        Sets currently playing status. Could be broken? idk.
+        '''
+        await client.change_presence(game=discord.Game(name=game))
+        em = discord.Embed(title=f"Set playing as {game}.",
+                               colour=0x19B300)
+        em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+
+
 
 def setup(bot):
     bot.add_cog(adminCommands(bot))
