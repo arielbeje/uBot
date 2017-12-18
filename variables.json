@@ -1,0 +1,8 @@
+{
+    "token": "",
+    "prefixes": ["$", "!"],
+    "comment": "||",
+    "botroles": ["Bot Commander"],
+    "modroles": ["Moderator", "Admin"],
+    "timezoneroles": ["timezone"]
+}
