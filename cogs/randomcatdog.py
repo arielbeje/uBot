@@ -13,13 +13,13 @@ else:
         dogdb = json.load(dogdatabase)
 
 
-class randomcatdog:
+class RandomCatDog:
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Random Dog & Cat"
 
     @commands.command(name="dog")
-    async def randomDog(self, ctx):
+    async def random_dog(self, ctx):
         """
         Gives a random picture of a dog from [random.dog](https://random.dog).
         """
@@ -31,7 +31,7 @@ class randomcatdog:
         await ctx.send(embed=em)
 
     @commands.command(name="cat")
-    async def randomCat(self, ctx):
+    async def random_cat(self, ctx):
         """
         Gives a random picture of a cat from [random.cat](http://random.cat).
         """

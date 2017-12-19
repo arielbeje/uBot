@@ -6,14 +6,14 @@ import discord
 from discord.ext import commands
 
 
-class ownerCog():
+class OwnerCog():
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Owner Commands"
 
     @commands.command(name="setavatar", aliases=["changeavatar", "setpic"])
     @commands.is_owner()
-    async def setAvatar(self, ctx, url: str=""):
+    async def set_avatar(self, ctx, url: str=""):
         """
         Changes the bot's avatar.
         Can attach an image or use a URL.
@@ -50,7 +50,7 @@ class ownerCog():
 
     @commands.command(name="setname", aliases=["changename", "setusername", "changeusername"])
     @commands.is_owner()
-    async def setName(self, ctx, *, name: str):
+    async def set_name(self, ctx, *, name: str):
         """
         Changes the bot's username.
         """
@@ -98,8 +98,8 @@ class ownerCog():
                            colour=0x19B300)
         await ctx.send(embed=em)
 
-    @setAvatar.error
-    async def setAvatarErrorHandler(self, ctx, error):
+    @set_avatar.error
+    async def set_avatar_error_handler(self, ctx, error):
         origerror = getattr(error, 'original', error)
         if isinstance(origerror, AssertionError):
             em = discord.Embed(title="Error",

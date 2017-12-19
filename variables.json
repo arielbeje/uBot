@@ -4,5 +4,10 @@
     "comment": "||",
     "botroles": ["Bot Commander"],
     "modroles": ["Moderator", "Admin"],
-    "timezoneroles": ["timezone"]
+    "timezoneroles": ["timezone"],
+    "modmail": {
+        "channel": "modmail",
+        "guildID": "",
+        "enabled": "True"
+    }
 }

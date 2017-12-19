@@ -8,7 +8,7 @@ with open('variables.json', 'r') as f:
     variables = json.load(f)
 
 
-class adminCommands:
+class AdminCommands:
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Admin Commands"
@@ -28,7 +28,7 @@ class adminCommands:
             await ctx.channel.purge(after=message)
 
     @prune.error
-    async def pruneErrorHandler(self, ctx, error):
+    async def prune_error_handler(self, ctx, error):
         if isinstance(error, commands.errors.CommandInvokeError):  # Invalid prune number.
             em = discord.Embed(title="Error",
                                description="That message ID is invalid.",
@@ -42,7 +42,7 @@ class adminCommands:
 
     @commands.command(name="setnick")
     @commands.has_any_role(*variables["modroles"])
-    async def setNick(self, ctx, *, nick: str=None):
+    async def set_nick(self, ctx, *, nick: str=None):
         """
         Changes the bot's nickname in this server.
         If no nickname is inputted, the nickname is reset.
@@ -59,7 +59,7 @@ class adminCommands:
 
     @commands.command(name="setplaying")
     @commands.has_any_role(*variables["modroles"])
-    async def setPlaying(self, ctx, *, game: str=None):
+    async def set_playing(self, ctx, *, game: str=None):
         """
         Sets "currently playing" status.
         """

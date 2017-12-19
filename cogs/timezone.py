@@ -18,7 +18,7 @@ with open('variables.json', 'r') as f:
     variables = json.load(f)
 
 
-class timezoneConverter:
+class TimezoneConverter:
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Timezone Converter"
@@ -72,7 +72,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
 
     @timezone.command(name="add", aliases=["edit"])
     @commands.has_any_role(*variables["timezoneroles"])
-    async def timezoneJoin(self, ctx, *, timezone: str=None):
+    async def timezone_join(self, ctx, *, timezone: str=None):
         """
         Add yourself to the timezone database.
         Use with `timezone add timezone', using a timezone from en.wikipedia.org/wiki/List_of_tz_database_time_zones.
@@ -87,7 +87,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
 
     @timezone.command(name="remove", aliases=["delete"])
     @commands.has_any_role(*variables["timezoneroles"])
-    async def timezoneRemove(self, ctx):
+    async def timezone_remove(self, ctx):
         """
         Remove yourself from the timezone database.
         """
@@ -101,7 +101,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
     @timezone.command(name="adduser", aliases=["edituser"])
     @commands.has_permissions(manage_roles=True)
     @commands.has_any_role(*variables["timezoneroles"])
-    async def timezoneJoinUser(self, ctx, user: discord.User, *, timezone: str=None):
+    async def timezone_join_user(self, ctx, user: discord.User, *, timezone: str=None):
         """
         Add a user to the timezone database.
         Use with `timezone adduser <user> <timezone>', using a timezone from en.wikipedia.org/wiki/List_of_tz_database_time_zones.
@@ -123,7 +123,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
     @timezone.command(name="removeuser")
     @commands.has_permissions(manage_roles=True)
     @commands.has_any_role(*variables["timezoneroles"])
-    async def timezoneRemoveUser(self, ctx, user: discord.User):
+    async def timezone_remove_user(self, ctx, user: discord.User):
         """
         Remove a user from the timezone database.
         """
@@ -141,7 +141,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
             await ctx.send(embed=em)
 
     @timezone.error
-    async def timezoneErrorHandler(self, ctx, error):
+    async def timezone_error_handler(self, ctx, error):
         origerror = getattr(error, 'original', error)
         if isinstance(origerror, pytz.exceptions.UnknownTimeZoneError):
             em = discord.Embed(title="Error",
@@ -149,7 +149,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
                                colour=0xDC143C)
             await ctx.send(embed=em)
 
-    @timezoneJoin.error
+    @timezone_join.error
     async def timezoneJoinErrorHandler(self, ctx, error):
         if isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
@@ -157,7 +157,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
                                colour=0xDC143C)
             await ctx.send(embed=em)
 
-    @timezoneJoinUser.error
+    @timezone_join_user.error
     async def timezoneJoinUserErrorHandler(self, ctx, error):
         origerror = getattr(error, 'original', error)
         if isinstance(origerror, pytz.exceptions.UnknownTimeZoneError):

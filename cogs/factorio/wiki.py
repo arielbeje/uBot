@@ -5,13 +5,13 @@ import discord
 from discord.ext import commands
 
 
-class wiki():
+class Wiki():
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Factorio Wiki"
 
     @commands.command(name="wiki")
-    async def wikiCommand(self, ctx, *, searchterm):
+    async def wiki_command(self, ctx, *, searchterm):
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """

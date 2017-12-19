@@ -18,7 +18,7 @@ with open('variables.json', 'r') as f:
     variables = json.load(f)
 
 
-def embedFAQ(ctx, bot, query, title=None, color=None):
+def embed_faq(ctx, bot, query, title=None, color=None):
     faquery = faqdb[query]
     if not title:
         title = query.title()
@@ -56,7 +56,7 @@ def embedFAQ(ctx, bot, query, title=None, color=None):
     return em
 
 
-class faqCog:
+class FAQCog:
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Frequently Asked Questions"
@@ -71,7 +71,7 @@ class faqCog:
             raise error
 
     @commands.group(name="faq", aliases=["tag", "tags", "faw"], invoke_without_command=True)
-    async def faqCommand(self, ctx, *, query: str=""):
+    async def faq_command(self, ctx, *, query: str=""):
         """
         Shows the list of available FAQ tags.
         """
@@ -84,7 +84,7 @@ class faqCog:
                                colour=0xDFDE6E)
 
         elif query in faqdb:
-            em = embedFAQ(ctx, self.bot, query)
+            em = embed_faq(ctx, self.bot, query)
 
         else:
             closeItems = []
@@ -102,9 +102,9 @@ class faqCog:
                 em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
-    @faqCommand.command(name="add", aliases=["edit"])
+    @faq_command.command(name="add", aliases=["edit"])
     @commands.has_any_role(*variables["botroles"])
-    async def faqAdd(self, ctx, title: str, *, content: str = ""):
+    async def faq_add(self, ctx, title: str, *, content: str = ""):
         """
         Add a new tag to the FAQ tags.
         """
@@ -115,7 +115,7 @@ class faqCog:
                                description="The title inputted is too long.\nThe maximum title length is 256 characters.",
                                colour=0xDC143C)
             await ctx.send(embed=em)
-            return 0
+            return
         if not content and not ctx.message.attachments:
             em = discord.Embed(title="Error",
                                description="Content is required to add an FAQ tag.",
@@ -170,11 +170,11 @@ class faqCog:
             except KeyError:
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
 
-            await ctx.send(embed=embedFAQ(ctx, self.bot, title, embedTitle, 0x19B300))
+            await ctx.send(embed=embed_faq(ctx, self.bot, title, embedTitle, 0x19B300))
 
-    @faqCommand.command(name="remove")
+    @faq_command.command(name="remove")
     @commands.has_any_role(*variables["botroles"])
-    async def faqRemove(self, ctx, *, title: str):
+    async def faq_remove(self, ctx, *, title: str):
         """
         Remove a tag from the FAQ tags.
         """

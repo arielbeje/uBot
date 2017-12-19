@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 
 
-def modEmbed(r, bot, modlink):
+def mod_embed(r, bot, modlink):
     taglist = []
     em = discord.Embed(title=r["title"],
                        url=f"https://mods.factorio.com/mods/{r['owner']}/{modlink.replace(' ', '%20')}",
@@ -34,7 +34,7 @@ def modEmbed(r, bot, modlink):
     return em
 
 
-class modPortal():
+class ModPortal():
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Factorio Mod Portal"
@@ -74,7 +74,7 @@ class modPortal():
                     async with aiohttp.ClientSession().get(f"https://mods.factorio.com/api/mods/{r['results'][0]['name']}") as response:
                         r2 = await response.read()
                     r2 = json.loads(r2)
-                    em = modEmbed(r2, self.bot, f"https://mods.factorio.com/api/{r['results'][0]['name']}")
+                    em = mod_embed(r2, self.bot, f"https://mods.factorio.com/api/{r['results'][0]['name']}")
                 else:
                     em = discord.Embed(title="Error",
                                        description=f"Could not find \"{modname.title()}\" in mod portal.",
@@ -82,7 +82,7 @@ class modPortal():
                 await bufferMsg.edit(embed=em)
                 return
             except KeyError:
-                await bufferMsg.edit(embed=modEmbed(r, self.bot, modlink))
+                await bufferMsg.edit(embed=mod_embed(r, self.bot, modlink))
 
 
 def setup(bot):
