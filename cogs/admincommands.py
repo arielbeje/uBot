@@ -58,15 +58,19 @@ class adminCommands:
 
     @commands.command(name="setplaying")
     @commands.has_any_role(*variables["modroles"])
-    async def setPlaying(game: str=None):
-        '''
-        Sets currently playing status. Could be broken? idk.
-        '''
-        await client.change_presence(game=discord.Game(name=game))
-        em = discord.Embed(title=f"Set playing as {game}.",
+    async def setPlaying(self, ctx, *, game: str=None):
+        """
+        Sets "currently playing" status.
+        """
+        await self.bot.change_presence(game=discord.Game(name=game))
+        if game:
+            em = discord.Embed(title=f"Successfully set playing as {game}.",
+                               colour=0x19B300)
+        else:
+            em = discord.Embed(title="Successfully reset \"playing\".",
                                colour=0x19B300)
         em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-
+        await ctx.send(embed=em)
 
 
 def setup(bot):

@@ -64,10 +64,6 @@ class ownerCog():
                                colour=0x19B300)
             await ctx.send(embed=em)
 
-    '''@commands.command(name="setnickname", aliases=["setnick", "editnick", "editnickname"])
-    @commands.is_owner()
-    async def setNickname(self, ctx, *, name: str):'''
-
     @commands.command(name="eval", aliases=["debug"])
     @commands.is_owner()
     async def eval(self, ctx, *, code: str):
