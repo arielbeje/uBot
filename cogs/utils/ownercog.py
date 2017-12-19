@@ -9,13 +9,15 @@ from discord.ext import commands
 class ownerCog():
     def __init__(self, bot):
         self.bot = bot
+        type(self).__name__ = "Owner Commands"
 
     @commands.command(name="setavatar", aliases=["changeavatar", "setpic"])
     @commands.is_owner()
     async def setAvatar(self, ctx, url: str=""):
         """
-        Set the bot's avatar.
+        Changes the bot's avatar.
         Can attach an image or use a URL.
+        If no avatar is given, the avatar is reset.
         """
         if not url and not ctx.message.attachments:
             await self.bot.user.edit(avatar=None)
@@ -50,7 +52,7 @@ class ownerCog():
     @commands.is_owner()
     async def setName(self, ctx, *, name: str):
         """
-        Change the bot's username.
+        Changes the bot's username.
         """
         if len(name) > 32:
             em = discord.Embed(title="Error",

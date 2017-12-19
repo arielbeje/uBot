@@ -13,7 +13,7 @@ class wiki():
     @commands.command(name="wiki")
     async def wikiCommand(self, ctx, *, searchterm):
         """
-        Search for a term in the [official Factorio wiki](https://wiki.factorio.com/).
+        Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
         r = requests.get(f"https://wiki.factorio.com/index.php?search={searchterm.title().replace(' ', '%20')}")
         soup = bs4.BeautifulSoup(r.text, 'html.parser')

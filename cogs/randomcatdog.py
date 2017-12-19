@@ -21,7 +21,7 @@ class randomcatdog:
     @commands.command(name="dog")
     async def randomDog(self, ctx):
         """
-        Gives a random picture of a dog from random.dog.
+        Gives a random picture of a dog from [random.dog](https://random.dog).
         """
         dogpic = f"https://random.dog/{random.choice(dogdb)}"
         em = discord.Embed(title="Random Dog!",
@@ -33,7 +33,7 @@ class randomcatdog:
     @commands.command(name="cat")
     async def randomCat(self, ctx):
         """
-        Gives a random picture of a cat from random.cat.
+        Gives a random picture of a cat from [random.cat](http://random.cat).
         """
         async with aiohttp.ClientSession() as session:
             async with session.get("http://random.cat/meow") as r:

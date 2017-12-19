@@ -42,7 +42,7 @@ class modPortal():
     @commands.command(name="linkmod", aliases=["mod"])
     async def linkmod(self, ctx, *, modname):
         """
-        Search for a mod in [mods.factorio.com](https://mods.factorio.com)
+        Search for a mod in [mods.factorio.com](https://mods.factorio.com).
         """
         em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
                            description="This may take a bit.",

@@ -56,9 +56,10 @@ def embedFAQ(ctx, bot, query, title=None, color=None):
     return em
 
 
-class faq:
+class faqCog:
     def __init__(self, bot):
         self.bot = bot
+        type(self).__name__ = "Frequently Asked Questions"
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.errors.CheckFailure):
@@ -70,7 +71,7 @@ class faq:
             raise error
 
     @commands.group(name="faq", aliases=["tag", "tags", "faw"], invoke_without_command=True)
-    async def faq(self, ctx, *, query: str=""):
+    async def faqCommand(self, ctx, *, query: str=""):
         """
         Shows the list of available FAQ tags.
         """
@@ -101,9 +102,9 @@ class faq:
                 em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
-    @faq.command(name="add", aliases=["edit"])
+    @faqCommand.command(name="add", aliases=["edit"])
     @commands.has_any_role(*variables["botroles"])
-    async def add(self, ctx, title: str, *, content: str = ""):
+    async def faqAdd(self, ctx, title: str, *, content: str = ""):
         """
         Add a new tag to the FAQ tags.
         """
@@ -171,9 +172,9 @@ class faq:
 
             await ctx.send(embed=embedFAQ(ctx, self.bot, title, embedTitle, 0x19B300))
 
-    @faq.command(name="remove")
+    @faqCommand.command(name="remove")
     @commands.has_any_role(*variables["botroles"])
-    async def remove(self, ctx, *, title: str):
+    async def faqRemove(self, ctx, *, title: str):
         """
         Remove a tag from the FAQ tags.
         """
@@ -194,4 +195,4 @@ class faq:
 
 
 def setup(bot):
-    bot.add_cog(faq(bot))
+    bot.add_cog(faqCog(bot))

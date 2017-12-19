@@ -27,7 +27,7 @@ class timezoneConverter:
     @commands.has_any_role(*variables["timezoneroles"])
     async def timezone(self, ctx, *, time: str=None):
         """
-        Convert a certain time from a user's timezone to everyone's timezone.
+        Converts a certain time from a user's timezone to everyone's timezone.
         If no time is inputted, convert current time.
         """
         authorID = str(ctx.message.author.id)

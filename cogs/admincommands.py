@@ -45,6 +45,7 @@ class adminCommands:
     async def setNick(self, ctx, *, nick: str=None):
         """
         Changes the bot's nickname in this server.
+        If no nickname is inputted, the nickname is reset.
         """
         await ctx.guild.me.edit(nick=nick)
         if nick:
