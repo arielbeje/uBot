@@ -109,4 +109,4 @@ class OwnerCog():
 
 
 def setup(bot):
-    bot.add_cog(ownerCog(bot))
+    bot.add_cog(OwnerCog(bot))

@@ -38,7 +38,7 @@ async def on_message(message):
     message.content = message.content.split(variables["comment"])[0]
     if message.guild is not None:
         await bot.process_commands(message)
-    elif message.guild is None and bool(variables["modmail"]["enabled"]):
+    elif message.guild is None and variables["modmail"]["enabled"].lower() == "true":
         if bot.get_guild(guildID).get_member(message.author.id) is not None:
             modmailChannel = None
             for channel in bot.get_guild(guildID).channels:
@@ -63,9 +63,8 @@ if __name__ == '__main__':
     bot.load_extension("cogs.utils.help")
     bot.load_extension("cogs.utils.ownercog")
     bot.load_extension("cogs.faq")
-    bot.load_extension("cogs.randomcatdog")
+    bot.load_extension("cogs.fun")
     bot.load_extension("cogs.admincommands")
     bot.load_extension("cogs.timezone")
-    bot.load_extension("cogs.factorio.modportal")
-    bot.load_extension("cogs.factorio.wiki")
+    bot.load_extension("cogs.factorio")
     bot.run(variables["token"], bot=True, reconnect=True)

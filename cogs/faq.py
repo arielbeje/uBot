@@ -195,4 +195,4 @@ class FAQCog:
 
 
 def setup(bot):
-    bot.add_cog(faqCog(bot))
+    bot.add_cog(FAQCog(bot))

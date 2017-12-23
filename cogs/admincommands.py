@@ -75,4 +75,4 @@ class AdminCommands:
 
 
 def setup(bot):
-    bot.add_cog(adminCommands(bot))
+    bot.add_cog(AdminCommands(bot))

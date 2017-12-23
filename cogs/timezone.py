@@ -168,4 +168,4 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
 
 
 def setup(bot):
-    bot.add_cog(timezoneConverter(bot))
+    bot.add_cog(TimezoneConverter(bot))
