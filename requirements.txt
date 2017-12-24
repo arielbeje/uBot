@@ -1,0 +1,9 @@
+ago==0.0.92
+aiohttp==2.3.6
+beautifulsoup4==4.6.0
+discord.py==1.0.0a1412+gf5a443f
+fuzzywuzzy==0.16.0
+python_dateutil==2.6.1
+pytz==2017.3
+requests==2.18.4
+tomd==0.1.3
