@@ -2,6 +2,7 @@ import aiohttp
 import json
 import os
 import random
+from random import randint
 
 import discord
 from discord.ext import commands
@@ -49,6 +50,21 @@ class FunCog():
                                        description="Couldn't reach random.cat.\nTry again later.",
                                        colour=0xDC143C)
                     await ctx.send(embed=em)
+        
+    @commands.command(name='0.16')
+    async def releaseDate(self, ctx):
+        """
+        Returns random date when asked for release date of 0.16.
+        """
+        rndInt = randint(0, 20)
+        if rndInt == 1:
+            await ctx.send('0.16 has officially been cancelled.')
+        if rndInt == 2:
+            await ctx.send('Will be out for release in just ' + str(randint(1, 59)) + ' minutes!')
+        if rndInt == 3:
+            await ctx.send('Whenever Half-Life 3 comes out.')
+        else:
+            await ctx.send('Planned for release in ' + str(randint(1, 700)) + ' days.')
 
     @commands.command(name="heresy")
     async def heresy(self, ctx, user: discord.User=None):
