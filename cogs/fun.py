@@ -2,7 +2,6 @@ import aiohttp
 import json
 import os
 import random
-from random import randint
 
 import discord
 from discord.ext import commands
@@ -43,28 +42,28 @@ class FunCog():
                     em = discord.Embed(title="Random Cat!",
                                        colour=0x19B300)
                     em.set_image(url=js['file'])
-                    em.set_footer(text=self.bot.user.name + " | Powered by random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+                    em.set_footer(text=f"{self.bot.user.name} | Powered by random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                     await ctx.send(embed=em)
                 else:
                     em = discord.Embed(title="Error",
                                        description="Couldn't reach random.cat.\nTry again later.",
                                        colour=0xDC143C)
                     await ctx.send(embed=em)
-        
-    @commands.command(name='0.16')
+
+    @commands.command(name="0.17")
     async def releaseDate(self, ctx):
         """
-        Returns random date when asked for release date of 0.16.
+        Returns the release date of 0.17.
         """
-        rndInt = randint(0, 20)
+        rndInt = random.randint(0, 20)
         if rndInt == 1:
-            await ctx.send('0.16 has officially been cancelled.')
+            await ctx.send("0.17 has officially been cancelled.")
         if rndInt == 2:
-            await ctx.send('Will be out for release in just ' + str(randint(1, 59)) + ' minutes!')
+            await ctx.send(f"0.17 will be out for release in just {random.randint(1, 59)} minutes!")
         if rndInt == 3:
-            await ctx.send('Whenever Half-Life 3 comes out.')
+            await ctx.send("0.17 will be released whenever Half-Life 3 comes out.")
         else:
-            await ctx.send('Planned for release in ' + str(randint(1, 700)) + ' days.')
+            await ctx.send(f"0.17 is planned for release in {random.randint(1, 700)} days.")
 
     @commands.command(name="heresy")
     async def heresy(self, ctx, user: discord.User=None):

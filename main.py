@@ -7,11 +7,13 @@ from discord.ext import commands
 with open('variables.json', 'r') as f:
     variables = json.load(f)
 
-if variables["token"] == "":
-    print("No token inputted. Please fill the variables.json file.")
+if not variables["token"]:
+    print("No token inputted in variables.json."
+          "The bot will not run without it.")
 
-if variables["modmail"]["guildID"] == "":
-    print("No guild ID for the modmail function was inputted in variables.json.\nThe bot will run without it.")
+if not variables["modmail"]["guildID"]:
+    print("No guild ID for the modmail function was inputted in variables.json."
+          "The modmail function will not run without it.")
 else:
     guildID = int(variables["modmail"]["guildID"])
 
@@ -30,13 +32,14 @@ bot = commands.Bot(command_prefix=get_prefix)
 
 @bot.event
 async def on_ready():
-    print(f'\n~-~-~-~-~-~-~-~-~\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}')
-    users = 0
-    #servers = 0 # need to figure out how to iterate on all servers in rewrite.
-    for user in bot.get_all_members():
-        users += 1
-    print(f'Serving ' + str(users) + ' users.')
-    print(f'~-~-~-~-~-~-~-~-~')
+    print(f"\n~-~-~-~-~-~-~-~-~\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
+    servers = len(list(bot.guilds))
+    users = len(list(bot.get_all_members()))
+    if servers > 1:
+        print(f"Serving {users} users in {servers} servers.")
+    else:
+        print(f"Serving {users} users in {servers} servers.")
+    print("~-~-~-~-~-~-~-~-~")
 
 
 @bot.event
@@ -44,14 +47,16 @@ async def on_message(message):
     message.content = message.content.split(variables["comment"])[0]
     if message.guild is not None:
         await bot.process_commands(message)
-    elif message.guild is None and variables["modmail"]["enabled"].lower() == "true":
+    elif (message.guild is None and
+          variables["modmail"]["enabled"].lower() == "true" and
+          guildID):
         if bot.get_guild(guildID).get_member(message.author.id) is not None:
             modmailChannel = None
             for channel in bot.get_guild(guildID).channels:
                 if channel.name == variables["modmail"]["channel"]:
                     modmailChannel = channel
             if modmailChannel:
-                em = discord.Embed(title=f"New mod mail:",
+                em = discord.Embed(title="New mod mail:",
                                    description=message.content,
                                    colour=0xDFDE6E)
                 if message.author.avatar:
@@ -73,5 +78,5 @@ if __name__ == '__main__':
     bot.load_extension("cogs.admincommands")
     bot.load_extension("cogs.timezone")
     bot.load_extension("cogs.factorio")
-    print(f'Successfully loaded extensions.')
+    print("Successfully loaded extensions.")
     bot.run(variables["token"], bot=True, reconnect=True)
