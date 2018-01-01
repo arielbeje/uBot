@@ -5,6 +5,8 @@ import io
 import discord
 from discord.ext import commands
 
+import utils.checks as customchecks
+
 
 class OwnerCog():
     def __init__(self, bot):
@@ -12,7 +14,7 @@ class OwnerCog():
         type(self).__name__ = "Owner Commands"
 
     @commands.command(name="setavatar", aliases=["changeavatar", "setpic"])
-    @commands.is_owner()
+    @customchecks.is_owner()
     async def set_avatar(self, ctx, url: str=""):
         """
         Changes the bot's avatar.
@@ -49,7 +51,7 @@ class OwnerCog():
         await ctx.send(embed=em)
 
     @commands.command(name="setname", aliases=["changename", "setusername", "changeusername"])
-    @commands.is_owner()
+    @customchecks.is_owner()
     async def set_name(self, ctx, *, name: str):
         """
         Changes the bot's username.
@@ -67,7 +69,7 @@ class OwnerCog():
             await ctx.send(embed=em)
 
     @commands.command(name="eval", aliases=["debug"])
-    @commands.is_owner()
+    @customchecks.is_owner()
     async def eval(self, ctx, *, code: str):
         """
         Evaluates code.
@@ -106,6 +108,21 @@ class OwnerCog():
                                description="The image/link inputted is invalid.",
                                colour=0xDC143C)
             await ctx.send(embed=em)
+
+    @commands.command(name="setplaying")
+    @customchecks.is_owner()
+    async def set_playing(self, ctx, *, game: str=None):
+        """
+        Sets "currently playing" status.
+        """
+        await self.bot.change_presence(game=discord.Game(name=game))
+        em = discord.Embed(colour=0x19B300)
+        if game:
+            em.title = f"Successfully set playing as {game}."
+        else:
+            em.title = "Successfully reset \"playing\"."
+        em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+        await ctx.send(embed=em)
 
 
 def setup(bot):

@@ -3,6 +3,7 @@ import json
 import discord
 from discord.ext import commands
 
+import utils.checks as customchecks
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
@@ -14,7 +15,7 @@ class AdminCommands:
         type(self).__name__ = "Admin Commands"
 
     @commands.command(name="prune", aliases="purge")
-    @commands.has_any_role(*variables["modroles"])
+    @customchecks.has_any_role(*variables["modroles"])
     async def prune(self, ctx, prunenum: int):
         """
         Prunes a certain amount of messages. Can also use message ID.
@@ -41,35 +42,18 @@ class AdminCommands:
             await ctx.send(embed=em)
 
     @commands.command(name="setnick")
-    @commands.has_any_role(*variables["modroles"])
+    @customchecks.has_any_role(*variables["modroles"])
     async def set_nick(self, ctx, *, nick: str=None):
         """
         Changes the bot's nickname in this server.
         If no nickname is inputted, the nickname is reset.
         """
         await ctx.guild.me.edit(nick=nick)
+        em = discord.Embed(colour=0x19B300)
         if nick:
-            em = discord.Embed(title=f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}",
-                               colour=0x19B300)
+            em.title = f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}",
         else:
-            em = discord.Embed(title=f"Successfully reset nickname in {ctx.guild.name}",
-                               colour=0x19B300)
-        em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-        await ctx.send(embed=em)
-
-    @commands.command(name="setplaying")
-    @commands.has_any_role(*variables["modroles"])
-    async def set_playing(self, ctx, *, game: str=None):
-        """
-        Sets "currently playing" status.
-        """
-        await self.bot.change_presence(game=discord.Game(name=game))
-        if game:
-            em = discord.Embed(title=f"Successfully set playing as {game}.",
-                               colour=0x19B300)
-        else:
-            em = discord.Embed(title="Successfully reset \"playing\".",
-                               colour=0x19B300)
+            em.title = f"Successfully reset nickname in {ctx.guild.name}"
         em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 

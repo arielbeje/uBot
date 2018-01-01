@@ -8,6 +8,9 @@ import re
 import discord
 from discord.ext import commands
 
+import utils.checks as customchecks
+
+
 if not os.path.isfile('data/timezonedb.json'):
     timezonedb = {}
 else:
@@ -24,7 +27,7 @@ class TimezoneConverter:
         type(self).__name__ = "Timezone Converter"
 
     @commands.group(name="timezone", aliases=["convertime", "converttime"], invoke_without_command=True)
-    @commands.has_any_role(*variables["timezoneroles"])
+    @customchecks.has_any_role(*variables["timezoneroles"])
     async def timezone(self, ctx, *, time: str=None):
         """
         Converts a certain time from a user's timezone to everyone's timezone.
@@ -71,7 +74,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
             await ctx.send(embed=em)
 
     @timezone.command(name="add", aliases=["edit"])
-    @commands.has_any_role(*variables["timezoneroles"])
+    @customchecks.has_any_role(*variables["timezoneroles"])
     async def timezone_join(self, ctx, *, timezone: str=None):
         """
         Add yourself to the timezone database.
@@ -86,7 +89,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
         await ctx.send(embed=em)
 
     @timezone.command(name="remove", aliases=["delete"])
-    @commands.has_any_role(*variables["timezoneroles"])
+    @customchecks.has_any_role(*variables["timezoneroles"])
     async def timezone_remove(self, ctx):
         """
         Remove yourself from the timezone database.
@@ -99,8 +102,8 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
         await ctx.send(embed=em)
 
     @timezone.command(name="adduser", aliases=["edituser"])
-    @commands.has_permissions(manage_roles=True)
-    @commands.has_any_role(*variables["timezoneroles"])
+    @customchecks.has_permissions(manage_roles=True)
+    @customchecks.has_any_role(*variables["timezoneroles"])
     async def timezone_join_user(self, ctx, user: discord.User, *, timezone: str=None):
         """
         Add a user to the timezone database.
@@ -121,8 +124,8 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
             await ctx.send(embed=em)
 
     @timezone.command(name="removeuser")
-    @commands.has_permissions(manage_roles=True)
-    @commands.has_any_role(*variables["timezoneroles"])
+    @customchecks.has_permissions(manage_roles=True)
+    @customchecks.has_any_role(*variables["timezoneroles"])
     async def timezone_remove_user(self, ctx, user: discord.User):
         """
         Remove a user from the timezone database.

@@ -71,12 +71,11 @@ class FunCog():
         Declares heresy.
         Can also declare heresy on a user.
         """
+        em = discord.Embed(colour=0x19B300)
         if user:
-            em = discord.Embed(description=f"{ctx.author.mention} declares heresy on {user.mention}!",
-                               colour=0x19B300)
+            em.description = f"{ctx.author.mention} declares heresy on {user.mention}!"
         else:
-            em = discord.Embed(description=f"{ctx.author.mention} declares heresy!",
-                               colour=0x19B300)
+            em.description = f"{ctx.author.mention} declares heresy!"
         em.set_image(url=random.choice(heresydb))
         em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)

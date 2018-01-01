@@ -8,6 +8,8 @@ import discord
 from discord.ext import commands
 from fuzzywuzzy import fuzz
 
+import utils.checks as customchecks
+
 if not os.path.isfile('data/tagdatabase.json'):
     faqdb = {}
 else:
@@ -33,42 +35,38 @@ def embed_faq(ctx, bot, query, title=None, color=None):
         authorPic = f"https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
     else:
         authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
-    if content and not image:
-        em = discord.Embed(title=title,
-                           description=content,
-                           timestamp=timestamp,
-                           colour=color)
-
-    elif not content and image:
-        em = discord.Embed(title=title,
-                           timestamp=timestamp,
-                           colour=color)
-        em.set_image(url=image)
-
-    else:
-        em = discord.Embed(title=title,
-                           description=content,
-                           timestamp=timestamp,
-                           colour=color)
+    em = discord.Embed(title=title,
+                       description=content,
+                       timestamp=timestamp,
+                       colour=color)
+    if image:
         em.set_image(url=image)
     em.set_author(name=authorName, icon_url=authorPic)
     em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
     return em
 
 
+async def check_image(ctx, bot, title, name, link=""):
+    if not link:
+        link = name
+    if (name[-3:] in ['png', 'jpg', 'gif'] or
+            name[-4:] in ['jpeg']):
+        faqdb[title]["image"] = link
+        return True
+    else:
+        em = discord.Embed(title="Error",
+                           description="An invalid image was used."
+                                       "The supported formats are `png`, `jpg`, `jpeg` & `gif`",
+                           colour=0xDC143C)
+        em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+        await ctx.send(embed=em)
+        return False
+
+
 class FAQCog:
     def __init__(self, bot):
         self.bot = bot
         type(self).__name__ = "Frequently Asked Questions"
-
-    async def on_command_error(self, ctx, error):
-        if isinstance(error, commands.errors.CheckFailure):
-            em = discord.Embed(title="Error",
-                               description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
-                               colour=0xDC143C)
-            return await ctx.send(embed=em)
-        else:
-            raise error
 
     @commands.group(name="faq", aliases=["tag", "tags", "faw"], invoke_without_command=True)
     async def faq_command(self, ctx, *, query: str=""):
@@ -103,94 +101,87 @@ class FAQCog:
         await ctx.send(embed=em)
 
     @faq_command.command(name="add", aliases=["edit"])
-    @commands.has_any_role(*variables["botroles"])
+    @customchecks.has_any_role(*variables["botroles"])
     async def faq_add(self, ctx, title: str, *, content: str = ""):
         """
         Add a new tag to the FAQ tags.
+        Can add an image by either attaching it to the message, or using ~~ imageurl at the end.
         """
         updatebool = True
         title = title.lower()
+        try:
+            content.split('~~')[1]
+            imageURL = content.split('~~')[1].strip()
+            content = content.split('~~')[0].strip()
+        except IndexError:
+            imageURL = ""
         if len(title) > 256:
             em = discord.Embed(title="Error",
                                description="The title inputted is too long.\nThe maximum title length is 256 characters.",
                                colour=0xDC143C)
             await ctx.send(embed=em)
             return
-        if not content and not ctx.message.attachments:
+        if (not content and
+                not ctx.message.attachments and
+                not imageURL):
             em = discord.Embed(title="Error",
                                description="Content is required to add an FAQ tag.",
                                colour=0xDC143C)
             em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
             await ctx.send(embed=em)
-            updatebool = False
+            return
 
-        elif content and not ctx.message.attachments:
+        else:
+            try:
+                faqdb[title]
+                existed = True
+            except KeyError:
+                existed = False
             faqdb[title] = {}
             faqdb[title]["content"] = content
             faqdb[title]["image"] = ""
             faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") + " UTC"
             faqdb[title]["creator"] = str(ctx.message.author.id)
 
-        elif not content and ctx.message.attachments:
-            faqdb[title] = {}
-            faqdb[title]["content"] = ""
-            faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") + " UTC"
-            faqdb[title]["creator"] = str(ctx.message.author.id)
-            attachedFile = ctx.message.attachments[0]
-            if attachedFile.filename.lower()[-3:] in ['png', 'jpg', 'gif'] or attachedFile.filename.lower()[-4:] in ['jpeg']:
-                faqdb[title]["image"] = attachedFile.url
-            else:
-                em = discord.Embed(title="Error",
-                                   description="An invalid image was used.\nThe supported formats are `png`, `jpg`, `jpeg` & `gif`",
-                                   colour=0xDC143C)
-                em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-                await ctx.send(embed=em)
-
-        else:
-            faqdb[title] = {}
-            faqdb[title]["content"] = content
-            faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") + " UTC"
-            faqdb[title]["creator"] = str(ctx.message.author.id)
-            attachedFile = ctx.message.attachments[0]
-            if attachedFile.filename.lower()[-3:] in ['png', 'jpg', 'gif'] or attachedFile.filename.lower()[-4:] in ['jpeg']:
-                faqdb[title]["image"] = attachedFile.url
-            else:
-                em = discord.Embed(title="Error",
-                                   description="An invalid image was used.\nThe supported formats are `png`, `jpg`, `jpeg` & `gif`",
-                                   colour=0xDC143C)
-                em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-                await ctx.send(embed=em)
-
+            if imageURL:
+                if not await check_image(ctx, self.bot, title, imageURL):
+                    updatebool = False
+            elif ctx.message.attachments:
+                attachedFile = ctx.message.attachments[0]
+                attachedFileName = attachedFile.filename.lower()
+                if not await check_image(ctx, self.bot, title, attachedFileName, attachedFile.url):
+                    updatebool = False
         if updatebool:
             with open('data/tagdatabase.json', 'w') as database:
                 database.write(json.dumps(faqdb, sort_keys=True, indent=4))
-            try:
-                faqdb[title]
-                embedTitle = f"Successfully added \'{title.title()}\' to database"
-            except KeyError:
+            if existed:
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
+            else:
+                embedTitle = f"Successfully added \"{title.title()}\" to database"
 
             await ctx.send(embed=embed_faq(ctx, self.bot, title, embedTitle, 0x19B300))
 
     @faq_command.command(name="remove")
-    @commands.has_any_role(*variables["botroles"])
+    @customchecks.has_any_role(*variables["botroles"])
     async def faq_remove(self, ctx, *, title: str):
         """
         Remove a tag from the FAQ tags.
         """
         title = title.lower()
         if title in faqdb:
+            em = embed_faq(ctx=ctx,
+                           bot=self.bot,
+                           query=title,
+                           title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
+                           color=0xDC143C)
             del faqdb[title]
             with open('data/tagdatabase.json', 'w') as database:
                 database.write(json.dumps(faqdb, sort_keys=True, indent=4))
-            em = discord.Embed(title=f"Successfully removed \'{title.title()}\' from FAQ tags.",
-                               description=f"To see the list of available tags, use {ctx.prefix}faq",
-                               colour=0x19B300)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
                                description="Query not in FAQ tags.",
-                               colour=0x19B300)
+                               colour=0xDC143C)
             await ctx.send(embed=em)
 
 

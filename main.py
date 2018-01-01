@@ -1,8 +1,11 @@
 import asyncio
+import os
 import json
 
 import discord
 from discord.ext import commands
+
+import utils.checks as customchecks
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
@@ -31,12 +34,24 @@ bot = commands.Bot(command_prefix=get_prefix)
 
 
 @bot.event
+async def on_command_error(ctx, error):
+    origerror = getattr(error, 'original', error)
+    if isinstance(origerror, customchecks.NoPermsError):
+        em = discord.Embed(title="Error",
+                           description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
+                           colour=0xDC143C)
+        return await ctx.send(embed=em)
+    else:
+        raise error
+
+
+@bot.event
 async def on_ready():
     print(f"\n~-~-~-~-~-~-~-~-~\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
-    servers = len(list(bot.guilds))
-    users = len(list(bot.get_all_members()))
+    servers = len(bot.guilds)
+    users = len(bot.users)
     if servers > 1:
-        print(f"Serving {users} users in {servers} servers.")
+        print(f"Serving {users} users in 1 server.")
     else:
         print(f"Serving {users} users in {servers} servers.")
     print("~-~-~-~-~-~-~-~-~")
@@ -48,8 +63,8 @@ async def on_message(message):
     if message.guild is not None:
         await bot.process_commands(message)
     elif (message.guild is None and
-          variables["modmail"]["enabled"].lower() == "true" and
-          guildID):
+            variables["modmail"]["enabled"].lower() == "true" and
+            guildID):
         if bot.get_guild(guildID).get_member(message.author.id) is not None:
             modmailChannel = None
             for channel in bot.get_guild(guildID).channels:
@@ -71,12 +86,23 @@ async def on_message(message):
                 print(f"Could not find #{variables['modmail']['channel']} in {bot.get_guild(guildID).name}. Can not use modmail functionality.")
 
 if __name__ == '__main__':
-    bot.load_extension("cogs.utils.help")
-    bot.load_extension("cogs.utils.ownercog")
-    bot.load_extension("cogs.faq")
-    bot.load_extension("cogs.fun")
-    bot.load_extension("cogs.admincommands")
-    bot.load_extension("cogs.timezone")
-    bot.load_extension("cogs.factorio")
-    print("Successfully loaded extensions.")
+    hadError = False
+    coglist = []
+
+    for root, directories, files in os.walk("cogs"):
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            if filepath.endswith(".py"):
+                coglist.append(filepath.split(".py")[0].replace("\\", "."))
+
+    for cog in coglist:
+        try:
+            bot.load_extension(cog)
+        except Exception:
+            print(f"Failed to load cog: {cog}")
+            hadError = True
+    if hadError:
+        print("Error during cog loading.")
+    else:
+        print("Successfully loaded all cogs.")
     bot.run(variables["token"], bot=True, reconnect=True)
