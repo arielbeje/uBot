@@ -158,9 +158,8 @@ class Help(formatter.HelpFormatter):
 
             # <long doc> section
             if command.help:
-                name = '__{0}__'.format(command.help.split('\n\n')[0])
-                name_length = len(name) - 4
-                value = command.help[name_length:].replace('[p]', self.clean_prefix)
+                name = '{0}'.format(command.help.split('\n\n')[0])
+                value = command.help[len(name):].replace('[p]', self.clean_prefix)
                 if value == '':
                     value = empty
                 field = {
@@ -185,15 +184,15 @@ class Help(formatter.HelpFormatter):
         if self.is_bot():
             # Get list of non-hidden commands for bot.
             data = sorted(filtered, key=category)
-            for category, commands in itertools.groupby(data, key=category):
+            for category, commands_ in itertools.groupby(data, key=category):
                 # there simply is no prettier way of doing this.
                 field = {
                     'inline': False
                 }
-                commands = sorted(commands)
-                if len(commands) > 0:
+                commands_ = sorted(commands_)
+                if len(commands_) > 0:
                     field['name'] = category
-                    field['value'] = self._add_subcommands(commands)  # May need paginated
+                    field['value'] = self._add_subcommands(commands_)  # May need paginated
                     emb['fields'].append(field)
 
         else:
@@ -302,8 +301,7 @@ class Help(formatter.HelpFormatter):
                         return
                 except AttributeError:
                     await self.send(self.destination,
-                                    embed=self.simple_embed(title=
-                                                            'Command "{0.name}" has no subcommands.'.format(command),
+                                    embed=self.simple_embed(title='Command "{0.name}" has no subcommands.'.format(command),
                                                             color=self.color,
                                                             author=self.author))
                     return

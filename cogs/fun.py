@@ -77,7 +77,7 @@ class FunCog():
         else:
             em.description = f"{ctx.author.mention} declares heresy!"
         em.set_image(url=random.choice(heresydb))
-        em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+        # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
 

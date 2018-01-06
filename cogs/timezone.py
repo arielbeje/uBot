@@ -8,7 +8,7 @@ import re
 import discord
 from discord.ext import commands
 
-import utils.checks as customchecks
+import utils.customchecks as customchecks
 
 
 if not os.path.isfile('data/timezonedb.json'):

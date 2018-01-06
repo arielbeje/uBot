@@ -3,7 +3,7 @@ import json
 import discord
 from discord.ext import commands
 
-import utils.checks as customchecks
+import utils.customchecks as customchecks
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
@@ -54,7 +54,7 @@ class AdminCommands:
             em.title = f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}",
         else:
             em.title = f"Successfully reset nickname in {ctx.guild.name}"
-        em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+        # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
 

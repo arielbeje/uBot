@@ -5,7 +5,7 @@ import json
 import discord
 from discord.ext import commands
 
-import utils.checks as customchecks
+import utils.customchecks as customchecks
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
@@ -17,8 +17,12 @@ if not variables["token"]:
 if not variables["modmail"]["guildID"]:
     print("No guild ID for the modmail function was inputted in variables.json."
           "The modmail function will not run without it.")
+
 else:
     guildID = int(variables["modmail"]["guildID"])
+
+with open('data/reminderdb.json', 'r') as f:
+    reminderdb = json.load(f)
 
 
 def get_prefix(bot, message):
@@ -80,10 +84,12 @@ async def on_message(message):
                 else:
                     em.set_author(name=bot.get_guild(guildID).get_member(message.author.id).display_name,
                                   icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
-                em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+                # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
                 await modmailChannel.send(embed=em)
             else:
-                print(f"Could not find #{variables['modmail']['channel']} in {bot.get_guild(guildID).name}. Can not use modmail functionality.")
+                print(f"Could not find #{variables['modmail']['channel']} in {bot.get_guild(guildID).name}."
+                      "Can not use modmail functionality.")
+
 
 if __name__ == '__main__':
     hadError = False
@@ -99,6 +105,7 @@ if __name__ == '__main__':
         try:
             bot.load_extension(cog)
         except Exception:
+            raise Exception
             print(f"Failed to load cog: {cog}")
             hadError = True
     if hadError:

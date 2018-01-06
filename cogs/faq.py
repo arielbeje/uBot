@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from fuzzywuzzy import fuzz
 
-import utils.checks as customchecks
+import utils.customchecks as customchecks
 
 if not os.path.isfile('data/tagdatabase.json'):
     faqdb = {}
@@ -42,7 +42,7 @@ def embed_faq(ctx, bot, query, title=None, color=None):
     if image:
         em.set_image(url=image)
     em.set_author(name=authorName, icon_url=authorPic)
-    em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+    # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
     return em
 
 
@@ -58,7 +58,7 @@ async def check_image(ctx, bot, title, name, link=""):
                            description="An invalid image was used."
                                        "The supported formats are `png`, `jpg`, `jpeg` & `gif`",
                            colour=0xDC143C)
-        em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+        # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
         return False
 
@@ -127,20 +127,19 @@ class FAQCog:
             em = discord.Embed(title="Error",
                                description="Content is required to add an FAQ tag.",
                                colour=0xDC143C)
-            em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+            # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
             await ctx.send(embed=em)
             return
 
         else:
-            try:
-                faqdb[title]
+            existed = False
+            if title in faqdb:
                 existed = True
-            except KeyError:
-                existed = False
+
             faqdb[title] = {}
             faqdb[title]["content"] = content
             faqdb[title]["image"] = ""
-            faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+            faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
             faqdb[title]["creator"] = str(ctx.message.author.id)
 
             if imageURL:
@@ -154,14 +153,13 @@ class FAQCog:
         if updatebool:
             with open('data/tagdatabase.json', 'w') as database:
                 database.write(json.dumps(faqdb, sort_keys=True, indent=4))
+            embedTitle = f"Successfully added \"{title.title()}\" to database"
             if existed:
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
-            else:
-                embedTitle = f"Successfully added \"{title.title()}\" to database"
 
             await ctx.send(embed=embed_faq(ctx, self.bot, title, embedTitle, 0x19B300))
 
-    @faq_command.command(name="remove")
+    @faq_command.command(name="remove", aliases=["delete"])
     @customchecks.has_any_role(*variables["botroles"])
     async def faq_remove(self, ctx, *, title: str):
         """
