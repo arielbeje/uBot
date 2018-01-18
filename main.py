@@ -55,6 +55,7 @@ async def on_ready():
     servers = len(bot.guilds)
     users = len(bot.users)
     print(f"Serving {users} users in "+str(servers)+" server"+("s" if servers > 1 else "")+".")
+    print("~-~-~-~-~-~-~-~-~")
 
 
 @bot.event
