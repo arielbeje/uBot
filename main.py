@@ -54,11 +54,7 @@ async def on_ready():
     print(f"\n~-~-~-~-~-~-~-~-~\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
     servers = len(bot.guilds)
     users = len(bot.users)
-    if servers > 1:
-        print(f"Serving {users} users in 1 server.")
-    else:
-        print(f"Serving {users} users in {servers} servers.")
-    print("~-~-~-~-~-~-~-~-~")
+    print(f"Serving {users} users in "+str(servers)+" server"+("s" if servers > 1 else "")+".")
 
 
 @bot.event
