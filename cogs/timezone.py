@@ -153,7 +153,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
             await ctx.send(embed=em)
 
     @timezone_join.error
-    async def timezoneJoinErrorHandler(self, ctx, error):
+    async def timezone_join_error_handler(self, ctx, error):
         if isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
                                description="A timezone/date/time is required.",
@@ -161,7 +161,7 @@ To add yourself, use `{ctx.prefix}timezone add <your timezone>`''',
             await ctx.send(embed=em)
 
     @timezone_join_user.error
-    async def timezoneJoinUserErrorHandler(self, ctx, error):
+    async def timezone_join_user_error_handlerr(self, ctx, error):
         origerror = getattr(error, 'original', error)
         if isinstance(origerror, pytz.exceptions.UnknownTimeZoneError):
             em = discord.Embed(title="Error",

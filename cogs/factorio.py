@@ -61,13 +61,9 @@ class FactorioCog():
                 async with aiohttp.ClientSession().get(f"https://mods.factorio.com/api/mods/{modlink}") as response:
                     r = await response.read()
                 r = json.loads(r)
-                try:
-                    r["detail"]
-                    pass
-                except KeyError:
+                if "detail" not in r:
                     break
-            try:
-                r["detail"]
+            if "detail" in r:
                 async with aiohttp.ClientSession().get(f"https://mods.factorio.com/api/mods?q={modname.title()}&order=updated&page_size=4") as response:
                     r = await response.read()
                 r = json.loads(r)
@@ -87,11 +83,20 @@ class FactorioCog():
                                        colour=0xDC143C)
                 await bufferMsg.edit(embed=em)
                 return
-            except KeyError:
+            else:
                 await bufferMsg.edit(embed=mod_embed(r, self.bot, modlink))
 
+    @linkmod.error
+    async def linkmod_error_handler(self, ctx, error):
+        origerror = getattr(error, 'original', error)
+        if isinstance(origerror, json.JSONDecodeError) or isinstance(origerror, KeyError):
+            em = discord.Embed(title="Error",
+                               description="Couldn't reach mods.factorio.com.",
+                               colour=0xDC143C)
+            await ctx.send(embed=em)
+
     @commands.command(name="wiki")
-    async def wiki_command(self, ctx, *, searchterm):
+    async def wiki(self, ctx, *, searchterm):
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
@@ -117,7 +122,10 @@ class FactorioCog():
         else:
             description_ = ""
             if soup.select("#mw-content-text > p"):
-                description_ = tomd.convert(str(soup.select("#mw-content-text > p")[0]).strip())
+                pNum = 0
+                if re.match(r"this (article|page)", str(soup.select("#mw-content-text > p")[0])):
+                    pNum = 1
+                description_ = tomd.convert(str(soup.select("#mw-content-text > p")[pNum])).strip()
             em = discord.Embed(title=soup.find("h1", id='firstHeading').get_text(),
                                description=re.sub(r"\((\/\S*)\)", r"(https://wiki.factorio.com\1)", description_),
                                url=r.url,

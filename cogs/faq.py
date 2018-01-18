@@ -132,15 +132,17 @@ class FAQCog:
             return
 
         else:
+            creator = str(ctx.message.author.id)
             existed = False
             if title in faqdb:
+                creator = [faqdb][title]["creator"]
                 existed = True
 
             faqdb[title] = {}
             faqdb[title]["content"] = content
             faqdb[title]["image"] = ""
             faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-            faqdb[title]["creator"] = str(ctx.message.author.id)
+            faqdb[title]["creator"] = creator
 
             if imageURL:
                 if not await check_image(ctx, self.bot, title, imageURL):
@@ -150,6 +152,7 @@ class FAQCog:
                 attachedFileName = attachedFile.filename.lower()
                 if not await check_image(ctx, self.bot, title, attachedFileName, attachedFile.url):
                     updatebool = False
+
         if updatebool:
             with open('data/tagdatabase.json', 'w') as database:
                 database.write(json.dumps(faqdb, sort_keys=True, indent=4))

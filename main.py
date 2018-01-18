@@ -29,7 +29,7 @@ def get_prefix(bot, message):
     prefixes = variables["prefixes"]
 
     if message.guild is None:
-        return variables["prefixes"][0]  # In DMs, use only a certain prefix.
+        return variables["prefixes"][0]
 
     return commands.when_mentioned_or(*prefixes)(bot, message)
 
