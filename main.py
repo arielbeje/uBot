@@ -54,7 +54,7 @@ async def on_ready():
     print(f"\n~-~-~-~-~-~-~-~-~\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
     servers = len(bot.guilds)
     users = len(bot.users)
-    print(f"Serving {users} users in "+str(servers)+" server"+("s" if servers > 1 else "")+".")
+    print(f"Serving {users} users in " + str(servers) + " server" + ("s" if servers > 1 else "") + ".")
     print("~-~-~-~-~-~-~-~-~")
 
 
