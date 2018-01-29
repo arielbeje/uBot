@@ -87,7 +87,23 @@ class UserUtils:
             em.description = f"You will be reminded in {', '.join(timeString[:-1])} and {timeString[-1]} from now."
         # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
+    
+    @commands.command(name='userinfo')
+    async def user_info(self, ctx, user=discord.User=None):
+        """Returns information about the given user"""
+        if not user:
+            user = ctx.message.author
+        
+        name = user.name
+        
+        if user.display_name != user.name:
+            nickname = user.display_name
 
+        userid = user.id
+        avatar = user.avatar_url
+        registeredAt = user.created_at
+        joinedAt = ''
+        #ariel pls make pretty embed
 
 def setup(bot):
     bot.loop.create_task(reminder_check(bot))

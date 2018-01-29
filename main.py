@@ -87,6 +87,24 @@ async def on_message(message):
                 print(f"Could not find #{variables['modmail']['channel']} in {bot.get_guild(guildID).name}."
                       "Can not use modmail functionality.")
 
+@bot.event
+async def on_member_join(member):
+    #should make the channel configurable instead of it being hardcoded - ariel? :-)
+    channel = bot.get_channel(294992565181218816)
+    await channel.send(f'Join - {member.mention}, created at {member.created_at}. ID {member.id}')
+    
+@bot.event
+async def on_member_remove(member):
+    # see above
+    channel = bot.get_channel(294992565181218816)
+    await channel.send(f'Leave - {member.name}. ID {member.id}')
+
+@bot.event
+async def on_member_ban(guild, member):
+    # see above
+    channel = bot.get_channel(294992565181218816)
+    await channel.send(f'Ban - {member.name}, ID {member.id}. Joined at {member.joined_at}')
+
 
 if __name__ == '__main__':
     hadError = False

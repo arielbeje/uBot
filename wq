@@ -1,0 +1,113 @@
+[33mcommit e013045a8175001178dcd7b47230f46a34c21403[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: zirr <chri650t@edu.easj.dk>
+Date:   Sun Jan 21 23:57:25 2018 +0100
+
+    Added new commands
+    
+    blush|bully|cuddle|hug|kiss|lewd|pat|pout|slap|smug
+
+[33mcommit 4b530bfe90f46c8f722751a3000f9c6778f28c0f[m
+Author: burdoto <burdoto@outlook.com>
+Date:   Thu Jan 18 10:35:38 2018 +0100
+
+    big whoopsie
+
+[33mcommit 25829628323bf398792c4cdfea4c2f121b46b337[m
+Author: burdoto <burdoto@outlook.com>
+Date:   Thu Jan 18 10:31:39 2018 +0100
+
+    Replaced big, dusty IF with Ternary Condition for OCD
+    
+    Will add more later but GF now. -kal
+
+[33mcommit 64d6bdbc683daa03dc92f1d564148b598f94217a[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Thu Jan 18 06:56:12 2018 +0200
+
+    Added linkmod error handler, and fixed issue with wiki command.
+
+[33mcommit 5f502df156af92f7805afd38ac8e661c8ae6e305[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Sat Jan 6 15:25:52 2018 +0200
+
+    Commented out footers + minor changes.
+
+[33mcommit 68ef2a97a559d9e8287c2bf3d40d7f7b5c162799[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Mon Jan 1 16:49:26 2018 +0200
+
+    Minor optimizations.
+
+[33mcommit d70ff69eb964dd3afcb6111e6ea786045c9e4876[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Sun Dec 31 18:53:02 2017 +0200
+
+    Minor fixes.
+
+[33mcommit 6cb750b858e64f55c144ac491585c0cc6262baea[m
+Author: zirr <chri650t@edu.easj.dk>
+Date:   Thu Dec 28 15:34:21 2017 +0100
+
+    Added user count at startup - need to add server count as well
+
+[33mcommit 7b4127baec89a1e4f77dc310e4058d22818001da[m
+Author: zirr <chri650t@edu.easj.dk>
+Date:   Thu Dec 28 15:08:23 2017 +0100
+
+    Added 0.17 command.
+
+[33mcommit 63111afdfdf9c2dc396c33711365edfa5234446a[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Sun Dec 24 19:25:04 2017 +0200
+
+    Reverted "semi-added logger"
+    
+    This reverts commit f1e9d8cddacd9b15b084251d0e17fcd292d5ae46.
+
+[33mcommit 1637b38237bb7cbf6058f73f9a1635d2e9a9c575[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Sun Dec 24 19:19:16 2017 +0200
+
+    Added requirements.txt.
+
+[33mcommit f1e9d8cddacd9b15b084251d0e17fcd292d5ae46[m
+Author: zirr <chri650t@edu.easj.dk>
+Date:   Sun Dec 24 14:06:06 2017 +0100
+
+    semi-added logger
+
+[33mcommit 83a611fad6dc93c22ea1dc9133ba9b69809d5530[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Sat Dec 23 14:36:38 2017 +0200
+
+    Added heresy command, and changed around cog files.
+
+[33mcommit 6d8f637214f850775b287aae9d9bef8804447a9d[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Tue Dec 19 22:47:29 2017 +0200
+
+    Added modmail functionality.
+
+[33mcommit dc6be4999d762b7e6b7f158cd17036403a7636e1[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Tue Dec 19 13:59:50 2017 +0200
+
+    Fixed problem with FAQ cog.
+
+[33mcommit 842eae1b3bea4bbabdbff2b28d403686033d22dd[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Tue Dec 19 10:13:09 2017 +0200
+
+    Fixed setPlaying command.
+
+[33mcommit f9b33381495bef39d41afa309b8ec221ca33f624[m
+Author: zirr <chri650t@edu.easj.dk>
+Date:   Tue Dec 19 00:06:40 2017 +0100
+
+    Added now-playing command. Can't test it cause it's erroring out. Revert commit if it's broken lol
+
+[33mcommit 3a6ede7bb76c269606fcb386f27f1206c337c344[m
+Author: arielbeje <arielb624@gmail.com>
+Date:   Mon Dec 18 22:52:17 2017 +0200
+
+    Inital Commit
