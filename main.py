@@ -91,20 +91,19 @@ async def on_message(message):
 async def on_member_join(member):
     #should make the channel configurable instead of it being hardcoded - ariel? :-)
     channel = bot.get_channel(294992565181218816)
-    await channel.send(f'Join - {member.mention}, created at {member.created_at}. ID {member.id}')
-    
+    await channel.send(f'Join - {member.mention}, account created at {member.created_at}. ID {member.id}. {len(member.guild.members)} members.')
+
 @bot.event
 async def on_member_remove(member):
     # see above
     channel = bot.get_channel(294992565181218816)
-    await channel.send(f'Leave - {member.name}. ID {member.id}')
+    await channel.send(f'Leave - {member.name}. ID {member.id}. {len(member.guild.members)} members.')
 
 @bot.event
 async def on_member_ban(guild, member):
     # see above
     channel = bot.get_channel(294992565181218816)
-    await channel.send(f'Ban - {member.name}, ID {member.id}. Joined at {member.joined_at}')
-
+    await channel.send(f'Ban - {member.name}, ID {member.id}. Joined at {member.joined_at}.')
 
 if __name__ == '__main__':
     hadError = False
