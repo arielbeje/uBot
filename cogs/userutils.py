@@ -111,7 +111,7 @@ class UserUtils:
         ]
         for field in inlineFields:
             em.add_field(**field, inline=True)
-        avatar = member.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
+        avatar = user.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
         registeredAt = pytz.utc.localize(member.created_at)
         joinedAt = pytz.utc.localize(member.joined_at)
         em.add_field(name="Joined", value=f"{human(joinedAt, precision=4)} ({joinedAt.strftime('%d-%m-%Y %H:%M:%S %Z')})")
