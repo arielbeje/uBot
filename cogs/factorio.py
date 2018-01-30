@@ -10,27 +10,29 @@ import discord
 from discord.ext import commands
 
 
-def mod_embed(r, bot, modlink):
+def mod_embed(result):
     taglist = []
     fields = []
-    em = discord.Embed(title=r["title"],
-                       url=f"https://mods.factorio.com/mods/{r['owner']}/{r['name'].replace(' ', '%20')}",
-                       description=r["summary"],
+    title = result.find("div", class_="mod-card-info-container").find("h2", class_="mod-card-title").find("a")
+    em = discord.Embed(title=title.get_text(),
+                       url=f"https://mods.factorio.com{title['href'].replace(' ', '%20')}",
+                       description=result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-summary").get_text(),
                        colour=0x19B300)
-    if r["media_files"]:
-        em.set_thumbnail(url=r["media_files"][0]["urls"]["thumb"])
-    fields.append({"name": "Owner", "value": r["owner"]})
-    for tag in r["tags"]:
-        taglist.append(tag["title"])
+    thumbnail = result.find("div", class_="mod-card-thumbnail")
+    if "no-picture" not in thumbnail.attrs["class"]:
+        em.set_thumbnail(url=thumbnail.find("a").find("img")["src"])
+    owner = result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-author").find("a")
+    fields.append({"name": "Owner", "value": f"[{owner.get_text()}]({owner['href']})"})
+    for tag in result.find("div", class_="mod-card-footer").find("ul").find_all("li", class_="tag"):
+        tag = tag.find("span").find("a")
+        taglist.append(f"[{tag.get_text()}]({tag['href']})")
+    gameVersions = result.find("div", class_="mod-card-info").find("span", title="Available for these Factorio versions")
+    downloads = result.find("div", class_="mod-card-info").find("span", title="Downloads")
+    createdAt = result.find("div", class_="mod-card-info").find("span", title="Last updated")
     fields.extend([{"name": "Tags", "value": ', '.join(taglist)},
-                   {"name": "Game Version", "value": r["releases"][0]["game_version"]},
-                   {"name": "Downloads", "value": str(r["downloads_count"])}])
-    for item in ["created_at", "updated_at"]:
-        r[item] = re.sub(r"(?P<before>[+-]\d{2})(:)(?P<after>\d{2})", r"\g<before>\g<after>", r[item])
-        r[item] = datetime.datetime.strptime(r[item], "%Y-%m-%d %H:%M:%S.%f%z")
-        r[item] = human(r[item], precision=1)
-    fields.extend([{"name": "Released", "value": r["created_at"]},
-                   {"name": "Updated", "value": r["updated_at"]}])
+                   {"name": "Game Version(s)", "value": gameVersions.find("div", class_="mod-card-info-tag-label").get_text()},
+                   {"name": "Downloads", "value": downloads.find("div", class_="mod-card-info-tag-label").get_text()},
+                   {"name": "Updated", "value": createdAt.find("div", class_="mod-card-info-tag-label").get_text()}])
     for field in fields:
         em.add_field(**field, inline=True)
     # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
@@ -53,44 +55,45 @@ class FactorioCog():
         # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
-            for modlink in [modname, modname.replace(' ', '%20'), modname.replace(' ', '_'), modname.replace(' ', '-')]:
-                modlink = modlink.title()
-                async with aiohttp.ClientSession().get(f"https://mods.factorio.com/api/mods/{modlink}") as response:
-                    r = await response.read()
-                r = json.loads(r)
-                if "detail" not in r:
-                    break
-            if "detail" in r:
-                async with aiohttp.ClientSession().get(f"https://mods.factorio.com/api/mods?q={modname.title()}&order=updated&page_size=4") as response:
-                    r = await response.read()
-                r = json.loads(r)
-                if len(r["results"]) > 1:
-                    em = discord.Embed(title=f"Search results for \"{modname}\"",
-                                       colour=0xDFDE6E)
-                    for result in r["results"]:
-                        em.add_field(name=result["title"], inline=False, value=f"{result['summary']} [_Read More_](https://mods.factorio.com/mods/{result['owner']}/{result['name']})")
-                elif len(r["results"]) == 1:
-                    async with aiohttp.ClientSession().get(f"https://mods.factorio.com/api/mods/{r['results'][0]['name']}") as response:
-                        r2 = await response.read()
-                    r2 = json.loads(r2)
-                    em = mod_embed(r2, self.bot, f"https://mods.factorio.com/api/{r['results'][0]['name']}")
-                else:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    modname = modname.title()
+                    async with session.get(f"https://mods.factorio.com/query/{modname}") as response:
+                        soup = bs4.BeautifulSoup(await response.text(), 'html.parser')
+
+                if " 0 " in soup.find('span', class_='active-filters-bar-total-mods').get_text():
                     em = discord.Embed(title="Error",
                                        description=f"Could not find \"{modname.title()}\" in mod portal.",
                                        colour=0xDC143C)
-                await bufferMsg.edit(embed=em)
-                return
-            else:
-                await bufferMsg.edit(embed=mod_embed(r, self.bot, modlink))
+                    await bufferMsg.edit(embed=em)
+                    return
 
-    @linkmod.error
-    async def linkmod_error_handler(self, ctx, error):
-        origerror = getattr(error, 'original', error)
-        if isinstance(origerror, json.JSONDecodeError) or isinstance(origerror, KeyError):
-            em = discord.Embed(title="Error",
-                               description="Couldn't reach mods.factorio.com.",
-                               colour=0xDC143C)
-            await ctx.send(embed=em)
+                if soup.find_all('div', class_="mod-card"):
+                    if len(soup.find_all('div', class_="mod-card")) > 1:
+                        em = discord.Embed(title=f"Search results for \"{modname}\"",
+                                           colour=0xDFDE6E)
+                        i = 0
+                        for result in soup.find_all('div', class_="mod-card"):
+                            if i <= 4:
+                                title = result.find("h2", class_="mod-card-title").find("a")
+                                if title.get_text().title() == modname.title():
+                                    em = mod_embed(result)
+                                    break
+                                em.add_field(name=title.get_text(),
+                                             value=f"{result.find('div', class_='mod-card-summary').get_text()} [_Read More_](https://mods.factorio.com/mods/{title['href']})")
+                                i += 1
+
+                    else:
+                        em = mod_embed(soup.find("div", class_="mod-card"))
+
+                    await bufferMsg.edit(embed=em)
+                    return
+
+            except (aiohttp.client_exceptions.ContentTypeError, KeyError):
+                em = discord.Embed(title="Error",
+                                   description="Couldn't reach mods.factorio.com.",
+                                   colour=0xDC143C)
+                bufferMsg.edit(embed=em)
 
     @commands.command(name="wiki")
     async def wiki(self, ctx, *, searchterm):
@@ -106,7 +109,7 @@ class FactorioCog():
             async with aiohttp.ClientSession() as client:
                 async with client.get(f"https://wiki.factorio.com/index.php?search={searchterm.replace(' ', '%20')}") as resp:
                     r = await resp.text()
-            soup = bs4.BeautifulSoup(r.text, 'html.parser')
+            soup = bs4.BeautifulSoup(r, 'html.parser')
             if soup.find('p', class_='mw-search-nonefound'):
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{searchterm.title()}\" in wiki.",

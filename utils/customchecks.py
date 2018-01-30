@@ -41,12 +41,9 @@ def has_permissions(**perms):
     def predicate(ctx):
         ch = ctx.channel
         permissions = ch.permissions_for(ctx.author)
-
         missing = [perm for perm, value in perms.items() if getattr(permissions, perm, None) != value]
-
         if not missing:
             return True
 
-        print(missing)
         raise NoPermsError(missing)
     return commands.check(predicate)

@@ -29,7 +29,20 @@ if os.path.exists('data/reminderdb.json'):
     with open('data/reminderdb.json', 'r') as f:
         reminderdb = json.load(f)
 else:
-    print(f'Reminder DB not found.')
+    print(f"Reminder DB not found.")
+    failedOps += 1
+
+if not variables["joinleavechannelid"]:
+    print("No channel ID for the leave/join events was inputted in variables.json."
+          "The events will not run without it.")
+    joinLeaveID = 0
+    failedOps += 1
+else:
+    joinLeaveID = int(variables["joinleavechannelid"])
+
+if not variables["myanimelist"]["login"] or variables["myanimelist"]["password"]:
+    print("No username/password inputted in variables.json."
+          "The MyAnimeList API requires them to function.")
     failedOps += 1
 
 
@@ -43,6 +56,8 @@ def get_prefix(bot, message):
 
 
 bot = commands.Bot(command_prefix=get_prefix)
+if joinLeaveID != 0:
+    joinLeaveChannel = bot.get_channel(joinLeaveID)
 
 
 @bot.event
@@ -63,12 +78,10 @@ async def on_ready():
     servers = len(bot.guilds)
     users = len(bot.users)
     print(f"Serving {users} users in " + str(servers) + " server" + ("s" if servers > 1 else "") + ".")
-    #Health log
-    if failedOps is not 0:
+    # Health log
+    if failedOps != 0:
         print(f'{failedOps} operations failed.')
     print("~-~-~-~-~-~-~-~-~")
-    
-
 
 
 @bot.event
@@ -97,27 +110,27 @@ async def on_message(message):
                 # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
                 await modmailChannel.send(embed=em)
             else:
-                failedOps += 1
+                # failedOps += 1  # Can't be used. Variable is not defined here.
                 print(f"Could not find #{variables['modmail']['channel']} in {bot.get_guild(guildID).name}."
                       "Can not use modmail functionality.")
 
+
 @bot.event
 async def on_member_join(member):
-    #should make the channel configurable instead of it being hardcoded - ariel? :-)
-    channel = bot.get_channel(294992565181218816)
-    await channel.send(f'Join - {member.mention}, account created at {member.created_at}. ID {member.id}. {len(member.guild.members)} members.')
+    await joinLeaveChannel.send(f"Join - {member.mention}, account created at {member.created_at}."
+                                f"ID {member.id}. {len(member.guild.members)} members.")
+
 
 @bot.event
 async def on_member_remove(member):
-    # see above
-    channel = bot.get_channel(294992565181218816)
-    await channel.send(f'Leave - {member.name}. ID {member.id}. {len(member.guild.members)} members.')
+    await joinLeaveChannel.send(f"Leave - {member.name}. ID {member.id}."
+                                f"{len(member.guild.members)} members.")
+
 
 @bot.event
 async def on_member_ban(guild, member):
-    # see above
-    channel = bot.get_channel(294992565181218816)
-    await channel.send(f'Ban - {member.name}, ID {member.id}. Joined at {member.joined_at}.')
+    await joinLeaveChannel.send(f"Ban - {member.name}, ID {member.id}."
+                                f"Joined at {member.joined_at}.")
 
 if __name__ == '__main__':
     hadError = False
@@ -134,7 +147,7 @@ if __name__ == '__main__':
             bot.load_extension(cog)
             print(f'Loaded {cog} successfully')
         except Exception:
-            #raise Exception
+            # raise Exception
             print(f"Failed to load cog: {cog}")
             failedOps += 1
             hadError = True
@@ -143,4 +156,3 @@ if __name__ == '__main__':
     else:
         print("Successfully loaded all cogs.")
     bot.run(variables["token"], bot=True, reconnect=True)
-

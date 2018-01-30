@@ -138,25 +138,34 @@ class UserUtils:
         # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
-            if variables["mynaimelist"]["login"] and variables["mynaimelist"]["password"]:
+            if variables["myanimelist"]["login"] and variables["myanimelist"]["password"]:
                 try:
-                    async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(**variables["mynaimelist"])) as client:
+                    async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(**variables["myanimelist"])) as client:
                         async with client.get(f"https://myanimelist.net/api/anime/search.xml?q={query.replace(' ', '+')}") as resp:
-                            assert resp.status == 200
+                            assert resp.status != 401
                             mal_data = ET.fromstring(await resp.text())[0]
                         '''async with client.get(f"https://cdn.animenewsnetwork.com/encyclopedia/api.xml?type=anime&title=~{query}") as resp:
                             data = ET.fromstring(await resp.text())[0][1:]'''
                 except AssertionError:
-                    print("Invalid mynaimelist username/password.")
+                    print("Invalid myanimelist username/password.")
+                    em = discord.Embed(title="Error",
+                                       description="Invalid MyAnimeList login. Please contact the bot's owner.",
+                                       colour=0xDC143C)
+                    await bufferMsg.edit(embed=em)
                     return
             else:
                 print("To use the anime command, a myanimelist login has to be inputted in variables.json.")
+                em = discord.Embed(title="Error",
+                                   description="Invalid MyAnimeList login. Please contact the bot's owner.",
+                                   colour=0xDC143C)
+                await bufferMsg.edit(embed=em)
                 return
 
             choosingList = []
             messageToSend = "Please choose the correct show by entering its number.\n\n"
             i = 1
             for item in mal_data:
+                print(list(item))
                 if i <= 10:
                     choosingList.append(item)
                     messageToSend += f"[{i}] # {item[2].text}\n"
@@ -169,18 +178,20 @@ class UserUtils:
 
             def check(message):
                 content = message.content
-                contentIsIndex = False
                 try:
                     int(content)
                     contentIsIndex = len(choosingList) >= int(content) - 1 and not int(content) - 1 < 1
                 except ValueError:
-                    pass
+                    contentIsIndex = False
                 return message.author == ctx.message.author and contentIsIndex or content == "exit"
 
             try:
                 msg = await self.bot.wait_for('message', timeout=60.0, check=check)
+                havePerm = discord.Permissions.manage_messages in self.bot.permissions_in(ctx.message.channel)
                 if msg.content == "exit":
                     await bufferMsg.delete()
+                    if havePerm:
+                        await msg.delete()
                 else:
                     data = choosingList[int(msg.content) - 1]
                     # If bot has manage messages perm, delete the message
@@ -210,6 +221,8 @@ class UserUtils:
                     em.set_footer(text="Powered by myanimelist.net")
 
                     await bufferMsg.edit(embed=em, content=None)
+                    if havePerm:
+                        await msg.delete()
             except asyncio.TimeoutError:
                 await bufferMsg.delete()
 
