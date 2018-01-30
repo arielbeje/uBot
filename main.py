@@ -118,6 +118,7 @@ if __name__ == '__main__':
     for cog in coglist:
         try:
             bot.load_extension(cog)
+            print(f'Loaded {cog} successfully')
         except Exception:
             raise Exception
             print(f"Failed to load cog: {cog}")

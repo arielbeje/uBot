@@ -2,3 +2,4 @@ todo.txt
 __pycache__/
 /.vs/
 variables.json
+/uBot-env/
