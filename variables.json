@@ -1,13 +1,18 @@
 {
     "token": "",
-    "prefixes": ["$", "!"],
+    "prefixes": ["$", "!", "+"],
     "comment": "||",
     "botroles": ["Bot Commander"],
     "modroles": ["Moderator", "Admin"],
     "timezoneroles": ["timezone"],
+    "joinleavechannelid": "",
+    "myanimelist": {
+        "login": "",
+        "password": ""
+    },
     "modmail": {
         "channel": "modmail",
         "guildID": "",
-        "enabled": "True"
+        "enabled": "False"
     }
 }
