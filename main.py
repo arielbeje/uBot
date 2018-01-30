@@ -21,8 +21,11 @@ if not variables["modmail"]["guildID"]:
 else:
     guildID = int(variables["modmail"]["guildID"])
 
-with open('data/reminderdb.json', 'r') as f:
-    reminderdb = json.load(f)
+if os.path.exists('data/reminderdb.json'):
+    with open('data/reminderdb.json', 'r') as f:
+        reminderdb = json.load(f)
+else:
+    print(f'Reminder DB not found.')
 
 
 def get_prefix(bot, message):
@@ -56,6 +59,7 @@ async def on_ready():
     users = len(bot.users)
     print(f"Serving {users} users in " + str(servers) + " server" + ("s" if servers > 1 else "") + ".")
     print("~-~-~-~-~-~-~-~-~")
+
 
 
 @bot.event
@@ -120,7 +124,7 @@ if __name__ == '__main__':
             bot.load_extension(cog)
             print(f'Loaded {cog} successfully')
         except Exception:
-            raise Exception
+            #raise Exception
             print(f"Failed to load cog: {cog}")
             hadError = True
     if hadError:
