@@ -17,6 +17,23 @@ with open('data/heresydb.json', 'r') as heresydatabase:
     heresydb = json.load(heresydatabase)
 
 
+def compressImg(img, level):
+    fillColour = "#000000"
+    image = Image.open(img)
+    # Check if alpha layer
+    if image.mode in ("RGBA", "LA"):
+        new_img = Image.new(image.mode[:-1], image.size, fillColour)
+        new_img.paste(image, image.split()[-1])
+        image = new_img
+    if level == 1:
+        img.save("temppath", "JPEG", quality=10)
+    elif level == 2:
+        img.save("temppath", "JPEG", quality=5)
+    else:
+        img.save("temppath", "JPEG", quality=1)
+    return "temppath"
+
+
 class FunCog():
     def __init__(self, bot):
         self.bot = bot
@@ -31,7 +48,7 @@ class FunCog():
         em = discord.Embed(title="Random Dog!",
                            colour=0x19B300)
         em.set_image(url=dogpic)
-        em.set_footer(text=self.bot.user.name + " | Powered by random.dog", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+        em.set_footer(text="Powered by random.dog", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
     @commands.command(name="cat")
@@ -46,7 +63,7 @@ class FunCog():
                     em = discord.Embed(title="Random Cat!",
                                        colour=0x19B300)
                     em.set_image(url=js['file'])
-                    em.set_footer(text=f"{self.bot.user.name} | Powered by random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+                    em.set_footer(text="Powered by random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                     await ctx.send(embed=em)
                 else:
                     em = discord.Embed(title="Error",
@@ -129,22 +146,6 @@ class FunCog():
         else:
             em.set_image(url=random.choice(animedb["smug"]))
         await ctx.send(embed=em)
-    
-    def compressImg(self, img, level):
-        fillColour = '#000000'
-        image = Image.open(img)
-        #checks if alpha layer
-        if image.mode in ('RGBA', 'LA'):
-            new_img = Image.new(image.mode[:-1], image.size, fillColour)
-            new_img.paste(image, image.split()[-1])
-            image = new_img
-        if level == 1:
-            img.save('temppath', 'JPEG', quality=10)
-        elif level == 2:
-            img.save('temppath', 'JPEG', quality=5)
-        else:
-            img.save('temppath', 'JPEG', quality=1)
-        return 'temppath'
 
 
 def setup(bot):
