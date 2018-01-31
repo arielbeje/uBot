@@ -4,9 +4,9 @@ import asyncio
 import datetime
 import re
 import json
+import os
 import pytz
 import xml.etree.ElementTree as ET
-import os
 
 import discord
 from discord.ext import commands
@@ -15,9 +15,8 @@ if os.path.exists('data/reminderdb.json'):
     with open('data/reminderdb.json', 'r') as f:
         reminderdb = json.load(f)
 
-if os.path.exists('data/variables.json'):
-    with open('data/variables.json', 'r') as f:
-        variables = json.load(f)
+with open('variables.json', 'r') as f:
+    variables = json.load(f)
 
 
 async def reminder_check(bot, reminderdb=reminderdb):

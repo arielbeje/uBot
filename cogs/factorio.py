@@ -109,6 +109,7 @@ class FactorioCog():
             async with aiohttp.ClientSession() as client:
                 async with client.get(f"https://wiki.factorio.com/index.php?search={searchterm.replace(' ', '%20')}") as resp:
                     r = await resp.text()
+                    url = str(resp.url)
             soup = bs4.BeautifulSoup(r, 'html.parser')
             if soup.find('p', class_='mw-search-nonefound'):
                 em = discord.Embed(title="Error",
@@ -119,7 +120,7 @@ class FactorioCog():
                 return
             if soup.find_all('ul', class_="mw-search-results"):
                 em = discord.Embed(title="Factorio Wiki",
-                                   url=r.url,
+                                   url=url,
                                    colour=0xDFDE6E)
                 for item in soup.find_all('ul', class_="mw-search-results")[0].find_all("li"):
                     item = item.find_next('div', class_="mw-search-result-heading").find('a')
@@ -136,7 +137,7 @@ class FactorioCog():
                     description_ = tomd.convert(str(soup.select("#mw-content-text > p")[pNum])).strip().replace("<br/>", "\n")
                 em = discord.Embed(title=soup.find("h1", id='firstHeading').get_text(),
                                    description=re.sub(r"\((\/\S*)\)", r"(https://wiki.factorio.com\1)", description_),
-                                   url=r.url,
+                                   url=url,
                                    colour=0x19B300)
                 if soup.find('div', class_="factorio-icon"):
                     em.set_thumbnail(url=f"https://wiki.factorio.com{soup.find('div', class_='factorio-icon').find('img')['src']}")
