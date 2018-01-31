@@ -2,6 +2,7 @@ import aiohttp
 import json
 import os
 import random
+from PIL import Image
 
 import discord
 from discord.ext import commands
@@ -83,10 +84,10 @@ class FunCog():
         # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
-    @commands.command(name="blush", aliases=["bully", "cuddle", "hug", "kiss", "lewd", "pat", "pout", "slap", "smug"])
+    @commands.command(name="images", aliases=["blush", "bully", "cuddle", "hug", "kiss", "lewd", "pat", "pout", "slap", "smug"])
     async def image_macros(self, ctx, user: discord.User=None):
         """
-        Various image commands
+        Various image commands - blush, bully, cuddle, hug, kiss, lewd, pat, pout, slap, smug
         """
         usedCmd = ctx.invoked_with
         author = ctx.message.author.mention
@@ -128,6 +129,22 @@ class FunCog():
         else:
             em.set_image(url=random.choice(animedb["smug"]))
         await ctx.send(embed=em)
+    
+    def compressImg(self, img, level):
+        fillColour = '#000000'
+        image = Image.open(img)
+        #checks if alpha layer
+        if image.mode in ('RGBA', 'LA'):
+            new_img = Image.new(image.mode[:-1], image.size, fillColour)
+            new_img.paste(image, image.split()[-1])
+            image = new_img
+        if level == 1:
+            img.save('temppath', 'JPEG', quality=10)
+        elif level == 2:
+            img.save('temppath', 'JPEG', quality=5)
+        else:
+            img.save('temppath', 'JPEG', quality=1)
+        return 'temppath'
 
 
 def setup(bot):
