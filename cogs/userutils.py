@@ -6,16 +6,18 @@ import re
 import json
 import pytz
 import xml.etree.ElementTree as ET
+import os
 
 import discord
 from discord.ext import commands
 
+if os.path.exists('data/reminderdb.json'):
+    with open('data/reminderdb.json', 'r') as f:
+        reminderdb = json.load(f)
 
-with open('data/reminderdb.json', 'r') as f:
-    reminderdb = json.load(f)
-
-with open('variables.json') as f:
-    variables = json.load(f)
+if os.path.exists('data/variables.json'):
+    with open('data/variables.json', 'r') as f:
+        variables = json.load(f)
 
 
 async def reminder_check(bot, reminderdb=reminderdb):
@@ -106,7 +108,7 @@ class UserUtils:
             {"name": "ID", "value": member.id},
             {"name": "Nickname", "value": member.nick if not None else "None"},
             {"name": "Status", "value": member.status},
-            {"name": "Playing", "value": member.game if not None else "None"},
+            {"name": "Playing" if True or member.game and member.game.type != 1 else "Streaming", "value": member.game if not None else "None"},
             {"name": "Mention", "value": member.mention}
         ]
         for field in inlineFields:
