@@ -135,7 +135,7 @@ class FAQCog:
             creator = str(ctx.message.author.id)
             existed = False
             if title in faqdb:
-                creator = [faqdb][title]["creator"]
+                creator = faqdb[title]["creator"]
                 existed = True
 
             faqdb[title] = {}

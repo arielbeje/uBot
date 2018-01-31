@@ -14,7 +14,7 @@ class AdminCommands:
         self.bot = bot
         type(self).__name__ = "Admin Commands"
 
-    @commands.command(name="prune", aliases="purge")
+    @commands.command(name="prune", aliases=["purge"])
     @customchecks.has_any_role(*variables["modroles"])
     async def prune(self, ctx, prunenum: int):
         """
