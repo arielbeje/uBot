@@ -21,7 +21,6 @@ if not variables["modmail"]["guildID"]:
     failedOps += 1
     print("No guild ID for the modmail function was inputted in variables.json."
           "The modmail function will not run without it.")
-
 else:
     guildID = int(variables["modmail"]["guildID"])
 
@@ -39,6 +38,7 @@ if not variables["joinleavechannelid"]:
     failedOps += 1
 else:
     joinLeaveID = int(variables["joinleavechannelid"])
+    print(joinLeaveID)
 
 if not variables["myanimelist"]["login"] or variables["myanimelist"]["password"]:
     print("No username/password inputted in variables.json."
@@ -54,9 +54,9 @@ def get_prefix(bot, message):
 
     return commands.when_mentioned_or(*prefixes)(bot, message)
 
-
 bot = commands.Bot(command_prefix=get_prefix)
-if joinLeaveID != 0:
+
+if joinLeaveID is not 0:
     joinLeaveChannel = bot.get_channel(joinLeaveID)
 
 
@@ -81,6 +81,7 @@ async def on_ready():
     # Health log
     if failedOps != 0:
         print(f'{failedOps} operations failed.')
+    print(joinLeaveID)
     print("~-~-~-~-~-~-~-~-~")
 
 
@@ -117,18 +118,25 @@ async def on_message(message):
 
 @bot.event
 async def on_member_join(member):
+    if joinLeaveID is not 0:
+        joinLeaveChannel = bot.get_channel(joinLeaveID)
     await joinLeaveChannel.send(f"Join - {member.mention}, account created at {member.created_at}."
                                 f"ID {member.id}. {len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_remove(member):
+    print(joinLeaveID)
+    if joinLeaveID is not 0:
+        joinLeaveChannel = bot.get_channel(joinLeaveID)
     await joinLeaveChannel.send(f"Leave - {member.name}. ID {member.id}."
                                 f"{len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_ban(guild, member):
+    if joinLeaveID is not 0:
+        joinLeaveChannel = bot.get_channel(joinLeaveID)
     await joinLeaveChannel.send(f"Ban - {member.name}, ID {member.id}."
                                 f"Joined at {member.joined_at}.")
 
