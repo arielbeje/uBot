@@ -80,7 +80,7 @@ class FactorioCog():
                                     em = mod_embed(result)
                                     break
                                 em.add_field(name=title.get_text(),
-                                             value=f"{result.find('div', class_='mod-card-summary').get_text()} [_Read More_](https://mods.factorio.com/mods/{title['href']})")
+                                             value=f"{result.find('div', class_='mod-card-summary').get_text()} [_Read More_](https://mods.factorio.com/mods{title['href']})") # Remove double /
                                 i += 1
 
                     else:
