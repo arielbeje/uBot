@@ -57,13 +57,13 @@ class FunCog():
         Gives a random picture of a cat from [random.cat](http://random.cat).
         """
         async with aiohttp.ClientSession() as session:
-            async with session.get("http://random.cat/meow") as r:
+            async with session.get("http://aws.random.cat/meow") as r:
                 if r.status == 200:
                     js = await r.json()
                     em = discord.Embed(title="Random Cat!",
                                        colour=0x19B300)
                     em.set_image(url=js['file'])
-                    em.set_footer(text="Powered by random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
+                    em.set_footer(text="Powered by aws.random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                     await ctx.send(embed=em)
                 else:
                     em = discord.Embed(title="Error",
