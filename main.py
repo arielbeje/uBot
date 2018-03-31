@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+import re
 
 import discord
 from discord.ext import commands
@@ -16,13 +17,6 @@ if not variables["token"]:
     failedOps += 1
     print("No token inputted in variables.json."
           "The bot will not run without it.")
-
-if not variables["modmail"]["guildID"]:
-    failedOps += 1
-    print("No guild ID for the modmail function was inputted in variables.json."
-          "The modmail function will not run without it.")
-else:
-    guildID = int(variables["modmail"]["guildID"])
 
 if os.path.exists('data/reminderdb.json'):
     with open('data/reminderdb.json', 'r') as f:
@@ -53,6 +47,7 @@ def get_prefix(bot, message):
         return variables["prefixes"][0]
 
     return commands.when_mentioned_or(*prefixes)(bot, message)
+
 
 bot = commands.Bot(command_prefix=get_prefix)
 
@@ -85,35 +80,24 @@ async def on_ready():
     print("~-~-~-~-~-~-~-~-~")
 
 
+wikiEx = re.compile(r"\[\[(.*?)\]\]")
+modEx = re.compile(r"\{\{(.*?)\}\}")
+
+
 @bot.event
 async def on_message(message):
-    message.content = message.content.split(variables["comment"])[0]
-    if message.guild is not None:
+    msg = message.content
+    wikiSearch = None if not wikiEx.search(msg) else wikiEx.search(msg).group(1)
+    modSearch = None if not modEx.search(msg) else modEx.search(msg).group(1)
+    if wikiSearch or modSearch:
+        ctx = await bot.get_context(message)
+        if wikiSearch:
+            await ctx.invoke(bot.get_command("wiki"), searchterm=wikiSearch)
+        elif modSearch:
+            await ctx.invoke(bot.get_command("linkmod"), modname=modSearch)
+    else:
+        message.content = message.content.split(variables["comment"])[0]
         await bot.process_commands(message)
-    elif (message.guild is None and
-            variables["modmail"]["enabled"].lower() == "true" and
-            guildID):
-        if bot.get_guild(guildID).get_member(message.author.id) is not None:
-            modmailChannel = None
-            for channel in bot.get_guild(guildID).channels:
-                if channel.name == variables["modmail"]["channel"]:
-                    modmailChannel = channel
-            if modmailChannel:
-                em = discord.Embed(title="New mod mail:",
-                                   description=message.content,
-                                   colour=0xDFDE6E)
-                if message.author.avatar:
-                    em.set_author(name=bot.get_guild(guildID).get_member(message.author.id).display_name,
-                                  icon_url=f"https://cdn.discordapp.com/avatars/{message.author.id}/{message.author.avatar}.png?size=64")
-                else:
-                    em.set_author(name=bot.get_guild(guildID).get_member(message.author.id).display_name,
-                                  icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
-                # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
-                await modmailChannel.send(embed=em)
-            else:
-                # failedOps += 1  # Can't be used. Variable is not defined here.
-                print(f"Could not find #{variables['modmail']['channel']} in {bot.get_guild(guildID).name}."
-                      "Can not use modmail functionality.")
 
 
 @bot.event
