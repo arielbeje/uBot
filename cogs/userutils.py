@@ -6,38 +6,44 @@ import re
 import json
 import os
 import pytz
+import time
 import xml.etree.ElementTree as ET
 
 import discord
 from discord.ext import commands
 
-if os.path.exists('data/reminderdb.json'):
+'''if os.path.exists('data/reminderdb.json'):
     with open('data/reminderdb.json', 'r') as f:
-        reminderdb = json.load(f)
+        reminderdb = json.load(f)'''
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
 
 
-async def reminder_check(bot, reminderdb=reminderdb):
+'''async def reminder_check(bot, reminderdb=reminderdb):
     await bot.wait_until_ready()
     while not bot.is_closed():
-        tempdb = reminderdb.copy()
+        try:
+            with open('data/reminderdb.json', 'w') as f:
+                reminderdb = json.load(f)
+        except json.JSONDecodeError:
+            await asyncio.sleep(1)
         for user in reminderdb:
-            userdb = reminderdb[user]
-            time = datetime.datetime.strptime(userdb["time"], "%Y-%m-%d %H:%M:%S %Z")
-            if time < datetime.datetime.utcnow():
-                channel = bot.get_channel(int(userdb["channel"]))
-                em = discord.Embed(title="Reminder",
-                                   description=userdb["message"],
-                                   colour=0x19B300)
-                # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
-                await channel.send(bot.get_user(int(user)).mention, embed=em)
-                del tempdb[user]
-        reminderdb = tempdb
+            templist = list(reminderdb[user])  # Using list() to copy the list
+            for reminder in templist:
+                remindTime = int(datetime.datetime.utcfromtimestamp(reminder["time"]))
+                if int(remindTime) <= int(time.time()):
+                    channel = bot.get_channel(int(reminder["channel"]))
+                    em = discord.Embed(title="Reminder",
+                                       description=reminder["message"],
+                                       colour=0x19B300)
+                    # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+                    await channel.send(bot.get_user(int(user)).mention, embed=em)
+                    templist.remove(reminder)
+            reminderdb[user] = templist
         with open('data/reminderdb.json', 'w') as f:
             f.write(json.dumps(reminderdb, sort_keys=True, indent=4))
-        await asyncio.sleep(1)
+        await asyncio.sleep(1)'''
 
 
 class UserUtils:
@@ -45,7 +51,7 @@ class UserUtils:
         self.bot = bot
         type(self).__name__ = "Utility Commands"
 
-    @commands.command(name="reminder")
+    '''@commands.command(name="reminder", aliases=["remindme"])
     async def reminder(self, ctx, time: str="", *, content: str=""):
         """
         Sets a reminder with a message.
@@ -81,10 +87,11 @@ class UserUtils:
                 toAppend += 's'
             timeString.append(toAppend)
 
-        reminderdb[userID] = {}
-        reminderdb[userID]["message"] = content
-        reminderdb[userID]["channel"] = ctx.message.channel.id
-        reminderdb[userID]["time"] = remindTime.strftime("%Y-%m-%d %H:%M:%S UTC")
+        if userID not in reminderdb:
+            reminderdb[userID] = []
+        reminderdb[userID].append({"message": content,
+                                   "channel": ctx.message.channel.id,
+                                   "time": remindTime.timestamp()})
 
         with open('data/reminderdb.json', 'w') as db:
             db.write(json.dumps(reminderdb, sort_keys=True, indent=4))
@@ -94,7 +101,7 @@ class UserUtils:
         if len(timeString) > 1:
             em.description = f"You will be reminded in {', '.join(timeString[:-1])} and {timeString[-1]} from now."
         # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-        await ctx.send(embed=em)
+        await ctx.send(embed=em)'''
 
     @commands.command(name='userinfo')
     async def user_info(self, ctx, user: discord.User=None):
@@ -144,9 +151,7 @@ class UserUtils:
                     async with aiohttp.ClientSession(auth=aiohttp.BasicAuth(**variables["myanimelist"])) as client:
                         async with client.get(f"https://myanimelist.net/api/anime/search.xml?q={query.replace(' ', '+')}") as resp:
                             assert resp.status != 401
-                            mal_data = ET.fromstring(await resp.text())[0]
-                        '''async with client.get(f"https://cdn.animenewsnetwork.com/encyclopedia/api.xml?type=anime&title=~{query}") as resp:
-                            data = ET.fromstring(await resp.text())[0][1:]'''
+                            mal_data = ET.fromstring(await resp.text())
                 except AssertionError:
                     print("Invalid myanimelist username/password.")
                     em = discord.Embed(title="Error",
@@ -165,8 +170,8 @@ class UserUtils:
             choosingList = []
             messageToSend = "Please choose the correct show by entering its number.\n\n"
             i = 1
+            print(mal_data)
             for item in mal_data:
-                print(list(item))
                 if i <= 10:
                     choosingList.append(item)
                     messageToSend += f"[{i}] # {item[2].text}\n"
@@ -216,7 +221,7 @@ class UserUtils:
                         end_date = datetime.datetime.strptime(data[9].text, "%Y-%m-%d")
                         fields.append({"name": "End Date", "value": end_date.strftime("%d-%m-%Y")})
                     if data[5].text != "0.00":
-                        fields.append({"name": "Score", "value": f"{data[5].text}/10"})
+                        fields.append({"name": "Score", "value": f"{data[5].text} / 10"})
                     for field in fields:
                         em.add_field(**field, inline=True)
                     em.set_footer(text="Powered by myanimelist.net")
@@ -238,5 +243,5 @@ class UserUtils:
 
 
 def setup(bot):
-    bot.loop.create_task(reminder_check(bot))
+    # bot.loop.create_task(reminder_check(bot))
     bot.add_cog(UserUtils(bot))

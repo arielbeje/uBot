@@ -3,6 +3,7 @@ import json
 import os
 import pytz
 import re
+import rethinkdb as r
 
 import discord
 from discord.ext import commands
@@ -10,18 +11,29 @@ from fuzzywuzzy import fuzz
 
 import utils.customchecks as customchecks
 
-if not os.path.isfile('data/tagdatabase.json'):
-    faqdb = {}
-else:
-    with open('data/tagdatabase.json', 'r') as database:
-        faqdb = json.load(database)
+
+def faqdb(ctx, keys=False):
+    with r.connect(db="bot") as conn:
+        returnDict = r.table("servers").get(
+            ctx.message.guild.id).pluck("faq").run(conn)["faq"]
+        if keys:
+            return list(returnDict.keys())
+        else:
+            return returnDict
+
+
+# if not os.path.isfile('data/tagdatabase.json'):
+#     faqdb = {}
+# else:
+#     with open('data/tagdatabase.json', 'r') as database:
+#         faqdb = json.load(database)
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
 
 
 def embed_faq(ctx, bot, query, title=None, color=None):
-    faquery = faqdb[query]
+    faquery = faqdb(ctx)[query]
     if not title:
         title = query.title()
     if not color:
@@ -75,24 +87,29 @@ class FAQCog:
         """
         query = query.lower()
         if not query:
-            faqstr = list(faqdb.keys())
+            faqstr = faqdb(ctx, keys=True)
             faqstr.sort()
             em = discord.Embed(title="List of FAQ tags",
                                description=', '.join(faqstr).title(),
                                colour=0xDFDE6E)
 
-        elif query in faqdb:
+        elif query in faqdb(ctx):
             em = embed_faq(ctx, self.bot, query)
 
         else:
             closeItems = []
-            for item in list(faqdb.keys()):
+            for item in faqdb(ctx, keys=True):
                 if fuzz.ratio(query, item) >= 75:
                     closeItems.append(item.title())
             if len(closeItems) > 0:
-                em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
-                                   description=f"Did you mean {', '.join(closeItems)}?",
-                                   colour=0x19B300)
+                if len(closeItems) == 1:
+                    em = embed_faq(ctx, self.bot, closeItems[0].lower(),
+                                   title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0]}\"?",
+                                   color=0xFF8C00)
+                else:
+                    em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
+                                       description=f"Did you mean {', '.join(closeItems)}?",
+                                       colour=0xFF8C00)
             else:
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags.",
@@ -101,7 +118,7 @@ class FAQCog:
         await ctx.send(embed=em)
 
     @faq_command.command(name="add", aliases=["edit"])
-    @customchecks.has_any_role(*variables["botroles"])
+    @customchecks.has_mod_role()
     async def faq_add(self, ctx, title: str, *, content: str = ""):
         """
         Add a new tag to the FAQ tags.
@@ -134,15 +151,15 @@ class FAQCog:
         else:
             creator = str(ctx.message.author.id)
             existed = False
-            if title in faqdb:
-                creator = faqdb[title]["creator"]
+            if title in faqdb(ctx):
+                creator = faqdb(ctx)[title]["creator"]
                 existed = True
 
-            faqdb[title] = {}
-            faqdb[title]["content"] = content
-            faqdb[title]["image"] = ""
-            faqdb[title]["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-            faqdb[title]["creator"] = creator
+            currentfaq = {}
+            currentfaq["content"] = content
+            currentfaq["image"] = ""
+            currentfaq["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+            currentfaq["creator"] = creator
 
             if imageURL:
                 if not await check_image(ctx, self.bot, title, imageURL):
@@ -154,8 +171,14 @@ class FAQCog:
                     updatebool = False
 
         if updatebool:
-            with open('data/tagdatabase.json', 'w') as database:
-                database.write(json.dumps(faqdb, sort_keys=True, indent=4))
+            with r.connect(db="bot") as conn:
+                faq = r.table("servers").get(
+                    ctx.message.guild.id).pluck("faq").run(conn)["faq"]
+                faq[title] = currentfaq
+                r.table("servers").get(ctx.message.guild.id).update(
+                    {"faq": faq}).run(conn)
+            # with open('data/tagdatabase.json', 'w') as database:
+            #     database.write(json.dumps(faqdb, sort_keys=True, indent=4))
             embedTitle = f"Successfully added \"{title.title()}\" to database"
             if existed:
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
@@ -163,21 +186,24 @@ class FAQCog:
             await ctx.send(embed=embed_faq(ctx, self.bot, title, embedTitle, 0x19B300))
 
     @faq_command.command(name="remove", aliases=["delete"])
-    @customchecks.has_any_role(*variables["botroles"])
+    @customchecks.has_mod_role()
     async def faq_remove(self, ctx, *, title: str):
         """
         Remove a tag from the FAQ tags.
         """
         title = title.lower()
-        if title in faqdb:
+        if title in faqdb(ctx):
             em = embed_faq(ctx=ctx,
                            bot=self.bot,
                            query=title,
                            title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
                            color=0xDC143C)
-            del faqdb[title]
-            with open('data/tagdatabase.json', 'w') as database:
-                database.write(json.dumps(faqdb, sort_keys=True, indent=4))
+            with r.connect(db="bot") as conn:
+                faq = r.table("servers").get(
+                    ctx.message.guild.id).pluck("faq").run(conn)["faq"]
+                del faq[title]
+                r.table("servers").get(ctx.message.guild.id).update(
+                    {"faq": r.literal(faq)}).run(conn)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
