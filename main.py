@@ -52,7 +52,7 @@ def get_prefix(bot, message):
     return commands.when_mentioned_or(*prefixes)(bot, message)
 
 
-bot = commands.Bot(command_prefix=get_prefix)
+bot = commands.AutoShardedBot(command_prefix=get_prefix)
 
 if joinLeaveID is not 0:
     joinLeaveChannel = bot.get_channel(joinLeaveID)

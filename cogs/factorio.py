@@ -1,8 +1,5 @@
-from ago import human
 import aiohttp
 import bs4
-import datetime
-import json
 import tomd
 import re
 
@@ -65,7 +62,7 @@ class FactorioCog():
                     em = discord.Embed(title="Error",
                                        description=f"Could not find \"{modname.title()}\" in mod portal.",
                                        colour=0xDC143C)
-                    await bufferMsg.edit(embed=em)
+                    await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                     return
 
                 if soup.find_all('div', class_="mod-card"):
@@ -93,7 +90,7 @@ class FactorioCog():
                 em = discord.Embed(title="Error",
                                    description="Couldn't reach mods.factorio.com.",
                                    colour=0xDC143C)
-                bufferMsg.edit(embed=em)
+                bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
     @commands.command(name="wiki")
     async def wiki(self, ctx, *, searchterm):
@@ -116,7 +113,7 @@ class FactorioCog():
                                    description=f"Could not find \"{searchterm.title()}\" in wiki.",
                                    colour=0xDC143C)
                 # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-                await bufferMsg.edit(embed=em)
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                 return
             if soup.find_all('ul', class_="mw-search-results"):
                 em = discord.Embed(title="Factorio Wiki",

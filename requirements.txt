@@ -1,8 +1,10 @@
-pytz==2017.3
-discord.py==1.0.0a1412+gf5a443f
-tomd==0.1.3
+rethinkdb==2.3.0.post6
+discord.py==1.0.0a1459+g3cb6ac1
 ago==0.0.92
-aiohttp==2.3.6
+tomd==0.1.3
+aiohttp==2.2.5
 fuzzywuzzy==0.16.0
-python_dateutil==2.6.1
-bs4==0.0.1
+pytz==2013b0
+beautifulsoup4==4.6.0
+python_dateutil==2.7.3
+discord==0.0.2

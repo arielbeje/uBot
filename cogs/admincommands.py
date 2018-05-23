@@ -15,8 +15,11 @@ class AdminCommands:
         self.bot = bot
         type(self).__name__ = "Admin Commands"
 
-    @commands.group(invoke_without_command=True)
+    @commands.group(aliases=["modrole"], invoke_without_command=True)
     async def modroles(self, ctx):
+        """
+        Lists the moderator roles defined for this server.
+        """
         with r.connect(db="bot") as conn:
             modroles = r.table("servers").get(
                 ctx.message.guild.id).pluck("modroles").run(conn)["modroles"]
@@ -29,6 +32,9 @@ class AdminCommands:
     @modroles.command(name="add")
     @customchecks.has_mod_role()
     async def add_mod_role(self, ctx, *, modrole: str):
+        """
+        Add a new moderator role to the defined ones.
+        """
         with r.connect(db="bot") as conn:
             modroles = r.table("servers").get(
                 ctx.message.guild.id).pluck("modroles").run(conn)["modroles"]
@@ -44,6 +50,9 @@ class AdminCommands:
     @modroles.command(name="remove", aliases=["delete"])
     @customchecks.has_mod_role()
     async def remove_mod_role(self, ctx, *, modrole: str):
+        """
+        Remove a moderator role from the defined list.
+        """
         with r.connect(db="bot") as conn:
             modroles = r.table("servers").get(
                 ctx.message.guild.id).pluck("modroles").run(conn)["modroles"]
@@ -58,6 +67,9 @@ class AdminCommands:
 
     @commands.group(invoke_without_command=True)
     async def prefixes(self, ctx):
+        """
+        List the available prefixes for this server.
+        """
         with r.connect(db="bot") as conn:
             prefixes = r.table("servers").get(
                 ctx.message.guild.id).pluck("prefixes").run(conn)["prefixes"]
@@ -70,6 +82,9 @@ class AdminCommands:
     @prefixes.command(name="add")
     @customchecks.has_mod_role()
     async def add_prefix(self, ctx, *, prefix: str):
+        """
+        Adds a prefix to the list of defined ones.
+        """
         with r.connect(db="bot") as conn:
             prefixes = r.table("servers").get(
                 ctx.message.guild.id).pluck("prefixes").run(conn)["prefixes"]
@@ -92,6 +107,9 @@ class AdminCommands:
     @prefixes.command(name="remove")
     @customchecks.has_mod_role()
     async def remove_prefix(self, ctx, *, prefix: str):
+        """
+        Removes a prefix from the defined list.
+        """
         with r.connect(db="bot") as conn:
             prefixes = r.table("servers").get(
                 ctx.message.guild.id).pluck("prefixes").run(conn)["prefixes"]
@@ -108,6 +126,10 @@ class AdminCommands:
     @commands.command()
     @customchecks.has_mod_role()
     async def reset(self, ctx):
+        """
+        Resets the bot's settings for this server.
+        Careful! This doesn't have a confirmation message yet!
+        """
         with r.connect(db="bot") as conn:
             r.table("servers").get(
                 ctx.message.guild.id).update({"id": ctx.message.guild.id,

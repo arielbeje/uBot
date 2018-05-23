@@ -6,7 +6,7 @@ import re
 import json
 import os
 import pytz
-import time
+import html
 import xml.etree.ElementTree as ET
 
 import discord
@@ -18,6 +18,17 @@ from discord.ext import commands
 
 with open('variables.json', 'r') as f:
     variables = json.load(f)
+
+tagregex = re.compile(r"<.*?>")
+ampregex = re.compile(r"&amp;#(\d*);")
+
+
+def amp_repl(matchobj):
+    return chr(int(matchobj.group(1)))
+
+
+def clean_xml(inputdata):
+    return tagregex.sub("", html.unescape(ampregex.sub(amp_repl, inputdata)))
 
 
 '''async def reminder_check(bot, reminderdb=reminderdb):
@@ -114,7 +125,8 @@ class UserUtils:
             {"name": "ID", "value": member.id},
             {"name": "Nickname", "value": member.nick if not None else "None"},
             {"name": "Status", "value": member.status},
-            {"name": "Playing" if True or member.game and member.game.type != 1 else "Streaming", "value": member.game if not None else "None"},
+            {"name": member.activity.state, "value": member.activity.name} if member.activity else
+            {"name": "Activity", "value": "None"},
             {"name": "Mention", "value": member.mention}
         ]
         for field in inlineFields:
@@ -170,7 +182,6 @@ class UserUtils:
             choosingList = []
             messageToSend = "Please choose the correct show by entering its number.\n\n"
             i = 1
-            print(mal_data)
             for item in mal_data:
                 if i <= 10:
                     choosingList.append(item)
@@ -186,29 +197,29 @@ class UserUtils:
                 content = message.content
                 try:
                     int(content)
-                    contentIsIndex = len(choosingList) >= int(content) - 1 and not int(content) - 1 < 1
+                    contentIsIndex = len(choosingList) >= int(content) - 1 and not int(content) < 1
                 except ValueError:
                     contentIsIndex = False
                 return message.author == ctx.message.author and contentIsIndex or content == "exit"
 
             try:
-                msg = await self.bot.wait_for('message', timeout=60.0, check=check)
-                havePerm = discord.Permissions.manage_messages in self.bot.permissions_in(ctx.message.channel)
-                if msg.content == "exit":
-                    await bufferMsg.delete()
-                    if havePerm:
-                        await msg.delete()
+                if len(choosingList) > 1:
+                    userMsg = await self.bot.wait_for("message", timeout=60.0, check=check)
+                    botMember = ctx.message.guild.get_member(self.bot.user.id)
+                    havePerm = botMember.permissions_in(ctx.message.channel).manage_messages
+                    if userMsg.content == "exit":
+                        await bufferMsg.delete()
+
                 else:
-                    data = choosingList[int(msg.content) - 1]
+                    data = choosingList[int(userMsg.content) - 1] if len(choosingList) > 1 else choosingList[0]
                     # If bot has manage messages perm, delete the message
                     em = discord.Embed(title=data[2].text,
                                        url=f"https://myanimelist.net/anime/{data[0].text}",
-                                       description=data[11].replace("<br />", "").replace("&#039;", "'"),
-                                       # TODO: Improve cleaning of synopsis.
+                                       description=clean_xml(data[10].text),
                                        colour=0x19B300)
                     em.set_thumbnail(url=data[11].text)
-                    if data[2] != data[1]:
-                        em.description = f"**Alternative title:** {data[2].text}"
+                    if data[2].text.lower() != data[1].text.lower():
+                        em.description = f"**Alternative title:** {data[1].text}\n\n" + em.description
                     fields = []
                     start_date = datetime.datetime.strptime(data[8].text, "%Y-%m-%d")
                     if data[4].text == "0":
@@ -227,8 +238,9 @@ class UserUtils:
                     em.set_footer(text="Powered by myanimelist.net")
 
                     await bufferMsg.edit(embed=em, content=None)
-                    if havePerm:
-                        await msg.delete()
+
+                if havePerm:
+                    await userMsg.delete()
             except asyncio.TimeoutError:
                 await bufferMsg.delete()
 

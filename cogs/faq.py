@@ -34,6 +34,8 @@ with open('variables.json', 'r') as f:
 
 def embed_faq(ctx, bot, query, title=None, color=None):
     faquery = faqdb(ctx)[query]
+    if "link" in faquery:
+        faquery = faqdb(ctx)[faquery["link"]]
     if not title:
         title = query.title()
     if not color:
@@ -210,6 +212,32 @@ class FAQCog:
                                description="Query not in FAQ tags.",
                                colour=0xDC143C)
             await ctx.send(embed=em)
+
+    @faq_command.command(name="link")
+    @customchecks.has_mod_role()
+    async def faq_link(self, ctx, title: str, *, link: str):
+        """
+        Makes a shortcut tag in the list of FAQ tags.
+        """
+        if link in faqdb(ctx):
+            if title in faqdb(ctx):
+                em = embed_faq(ctx=ctx,
+                               bot=self.bot,
+                               query=title,
+                               title=f"Successfully edited \"{title.title()}\" to be a link for \"{link.title()}\"")
+            with r.connect(db="bot") as conn:
+                faq = r.table("servers").get(
+                    ctx.message.guild.id).pluck("faq").run(conn)["faq"]
+                faq[title] = {"link": link}
+                r.table("servers").get(ctx.message.guild.id).update(
+                    {"faq": faq}).run(conn)
+            em = discord.Embed(title=f"Successfully added tag \"{title}\" linking to \"{link}\"",
+                               colour=0x19B300)
+        else:
+            em = discord.Embed(title="Error",
+                               description="The tag to link to does not exist in the list of FAQ tags.",
+                               colour=0xDC143C)
+        await ctx.send(embed=em)
 
 
 def setup(bot):

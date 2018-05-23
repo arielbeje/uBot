@@ -2,7 +2,6 @@ import aiohttp
 import json
 import os
 import random
-from PIL import Image
 
 import discord
 from discord.ext import commands
@@ -15,23 +14,6 @@ animedb = imagedb["anime"]
 
 with open('data/heresydb.json', 'r') as heresydatabase:
     heresydb = json.load(heresydatabase)
-
-
-def compressImg(img, level):
-    fillColour = "#000000"
-    image = Image.open(img)
-    # Check if alpha layer
-    if image.mode in ("RGBA", "LA"):
-        new_img = Image.new(image.mode[:-1], image.size, fillColour)
-        new_img.paste(image, image.split()[-1])
-        image = new_img
-    if level == 1:
-        img.save("temppath", "JPEG", quality=10)
-    elif level == 2:
-        img.save("temppath", "JPEG", quality=5)
-    else:
-        img.save("temppath", "JPEG", quality=1)
-    return "temppath"
 
 
 class FunCog():
@@ -62,7 +44,7 @@ class FunCog():
                     js = await r.json()
                     em = discord.Embed(title="Random Cat!",
                                        colour=0x19B300)
-                    em.set_image(url=js['file'])
+                    em.set_image(url=js["file"])
                     em.set_footer(text="Powered by aws.random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                     await ctx.send(embed=em)
                 else:
@@ -130,18 +112,12 @@ class FunCog():
         elif usedCmd == "lewd":
             em.set_image(url=random.choice(animedb["lewd"]))
         elif usedCmd == "pat":
-            if not user:
-                em.description = f"Here, here"
-            else:
+            if user:
                 em.description = f"{author} pats {user.mention}"
             em.set_image(url=random.choice(animedb["pat"]))
         elif usedCmd == "pout":
             em.set_image(url=random.choice(animedb["pout"]))
         elif usedCmd == "slap":
-            if not user:
-                em.description = f"It-it's not like I wanted to slap {author} or something"
-            else:
-                em.description = f"{user.mention}, you baka!"
             em.set_image(url=random.choice(animedb["slap"]))
         else:
             em.set_image(url=random.choice(animedb["smug"]))
