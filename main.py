@@ -11,20 +11,13 @@ import utils.customchecks as customchecks
 
 failedOps = 0
 
-with open('variables.json', 'r') as f:
+with open("variables.json", "r") as f:
     variables = json.load(f)
 
 if not variables["token"]:
     failedOps += 1
     print("No token inputted in variables.json."
           "The bot will not run without it.")
-
-if os.path.exists('data/reminderdb.json'):
-    with open('data/reminderdb.json', 'r') as f:
-        reminderdb = json.load(f)
-else:
-    print(f"Reminder DB not found.")
-    failedOps += 1
 
 if not variables["joinleavechannelid"]:
     print("No channel ID for the leave/join events was inputted in variables.json."
@@ -60,7 +53,7 @@ if joinLeaveID is not 0:
 
 @bot.event
 async def on_command_error(ctx, error):
-    origerror = getattr(error, 'original', error)
+    origerror = getattr(error, "original", error)
     if isinstance(origerror, customchecks.NoPermsError):
         em = discord.Embed(title="Error",
                            description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
@@ -80,7 +73,7 @@ async def on_ready():
           " server" + ("s" if servers > 1 else "") + ".")
     # Health log
     if failedOps != 0:
-        print(f'{failedOps} operations failed.')
+        print(f"{failedOps} operations failed.")
     print(joinLeaveID)
     print("~-~-~-~-~-~-~-~-~")
 
@@ -154,7 +147,7 @@ async def on_member_ban(guild, member):
                                 f"Joined at {member.joined_at}.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     hadError = False
     coglist = []
 
@@ -167,7 +160,7 @@ if __name__ == '__main__':
     for cog in coglist:
         try:
             bot.load_extension(cog)
-            print(f'Loaded {cog} successfully')
+            print(f"Loaded {cog} successfully")
         except Exception:
             # raise Exception
             print(f"Failed to load cog: {cog}")

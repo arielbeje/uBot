@@ -6,13 +6,13 @@ import random
 import discord
 from discord.ext import commands
 
-with open('data/imagedb.json', 'r') as imgdatabase:
+with open("data/imagedb.json", "r") as imgdatabase:
     imagedb = json.load(imgdatabase)
 
 dogdb = imagedb["dogs"]
 animedb = imagedb["anime"]
 
-with open('data/heresydb.json', 'r') as heresydatabase:
+with open("data/heresydb.json", "r") as heresydatabase:
     heresydb = json.load(heresydatabase)
 
 

@@ -1,5 +1,4 @@
 import datetime
-import json
 import os
 import pytz
 import re
@@ -20,16 +19,6 @@ def faqdb(ctx, keys=False):
             return list(returnDict.keys())
         else:
             return returnDict
-
-
-# if not os.path.isfile('data/tagdatabase.json'):
-#     faqdb = {}
-# else:
-#     with open('data/tagdatabase.json', 'r') as database:
-#         faqdb = json.load(database)
-
-with open('variables.json', 'r') as f:
-    variables = json.load(f)
 
 
 def embed_faq(ctx, bot, query, title=None, color=None):
@@ -63,9 +52,8 @@ def embed_faq(ctx, bot, query, title=None, color=None):
 async def check_image(ctx, bot, title, name, link=""):
     if not link:
         link = name
-    if (name[-3:] in ['png', 'jpg', 'gif'] or
-            name[-4:] in ['jpeg']):
-        faqdb[title]["image"] = link
+    if (name[-3:] in ["png", "jpg", "gif"] or
+            name[-4:] == "jpeg"):
         return True
     else:
         em = discord.Embed(title="Error",
@@ -92,7 +80,7 @@ class FAQCog:
             faqstr = faqdb(ctx, keys=True)
             faqstr.sort()
             em = discord.Embed(title="List of FAQ tags",
-                               description=', '.join(faqstr).title(),
+                               description=", ".join(faqstr).title(),
                                colour=0xDFDE6E)
 
         elif query in faqdb(ctx):
@@ -129,9 +117,8 @@ class FAQCog:
         updatebool = True
         title = title.lower()
         try:
-            content.split('~~')[1]
-            imageURL = content.split('~~')[1].strip()
-            content = content.split('~~')[0].strip()
+            content.split("~~")[1]
+            content, imageURL = (content.split("~~")[0].strip(), content.split("~~")[1].strip())
         except IndexError:
             imageURL = ""
         if len(title) > 256:
@@ -166,11 +153,15 @@ class FAQCog:
             if imageURL:
                 if not await check_image(ctx, self.bot, title, imageURL):
                     updatebool = False
+                else:
+                    currentfaq["image"] = imageURL
             elif ctx.message.attachments:
                 attachedFile = ctx.message.attachments[0]
                 attachedFileName = attachedFile.filename.lower()
                 if not await check_image(ctx, self.bot, title, attachedFileName, attachedFile.url):
                     updatebool = False
+                else:
+                    currentfaq["image"] = attachedFile.url
 
         if updatebool:
             with r.connect(db="bot") as conn:
@@ -179,8 +170,6 @@ class FAQCog:
                 faq[title] = currentfaq
                 r.table("servers").get(ctx.message.guild.id).update(
                     {"faq": faq}).run(conn)
-            # with open('data/tagdatabase.json', 'w') as database:
-            #     database.write(json.dumps(faqdb, sort_keys=True, indent=4))
             embedTitle = f"Successfully added \"{title.title()}\" to database"
             if existed:
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"

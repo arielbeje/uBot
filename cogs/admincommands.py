@@ -1,13 +1,7 @@
-import json
 import rethinkdb as r
-
 import discord
 from discord.ext import commands
-
 import utils.customchecks as customchecks
-
-with open('variables.json', 'r') as f:
-    variables = json.load(f)
 
 
 class AdminCommands:

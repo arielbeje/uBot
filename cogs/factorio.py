@@ -58,19 +58,19 @@ class FactorioCog():
                     async with session.get(f"https://mods.factorio.com/query/{modname}") as response:
                         soup = bs4.BeautifulSoup(await response.text(), 'html.parser')
 
-                if " 0 " in soup.find('span', class_='active-filters-bar-total-mods').get_text():
+                if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").get_text():
                     em = discord.Embed(title="Error",
                                        description=f"Could not find \"{modname.title()}\" in mod portal.",
                                        colour=0xDC143C)
                     await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                     return
 
-                if soup.find_all('div', class_="mod-card"):
-                    if len(soup.find_all('div', class_="mod-card")) > 1:
+                if soup.find_all("div", class_="mod-card"):
+                    if len(soup.find_all("div", class_="mod-card")) > 1:
                         em = discord.Embed(title=f"Search results for \"{modname}\"",
                                            colour=0xDFDE6E)
                         i = 0
-                        for result in soup.find_all('div', class_="mod-card"):
+                        for result in soup.find_all("div", class_="mod-card"):
                             if i <= 4:
                                 title = result.find("h2", class_="mod-card-title").find("a")
                                 if title.get_text().title() == modname.title():
@@ -107,22 +107,22 @@ class FactorioCog():
                 async with client.get(f"https://wiki.factorio.com/index.php?search={searchterm.replace(' ', '%20')}") as resp:
                     r = await resp.text()
                     url = str(resp.url)
-            soup = bs4.BeautifulSoup(r, 'html.parser')
-            if soup.find('p', class_='mw-search-nonefound'):
+            soup = bs4.BeautifulSoup(r, "html.parser")
+            if soup.find("p", class_="mw-search-nonefound"):
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{searchterm.title()}\" in wiki.",
                                    colour=0xDC143C)
                 # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                 await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                 return
-            if soup.find_all('ul', class_="mw-search-results"):
+            if soup.find_all("ul", class_="mw-search-results"):
                 em = discord.Embed(title="Factorio Wiki",
                                    url=url,
                                    colour=0xDFDE6E)
-                for item in soup.find_all('ul', class_="mw-search-results")[0].find_all("li"):
-                    item = item.find_next('div', class_="mw-search-result-heading").find('a')
-                    itemlink = item['href'] if not item['href'].endswith(")") else item['href'].replace(")", "\)")
-                    em.add_field(name=item['title'], value=f"[Read More](https://wiki.factorio.com{itemlink})", inline=True)
+                for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
+                    item = item.find_next("div", class_="mw-search-result-heading").find("a")
+                    itemlink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\)")
+                    em.add_field(name=item["title"], value=f"[Read More](https://wiki.factorio.com{itemlink})", inline=True)
                 # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                 await bufferMsg.edit(embed=em)
             else:
@@ -132,11 +132,11 @@ class FactorioCog():
                     if re.search(r"((^<br/>$)|(This (article|page)))", str(soup.select("#mw-content-text > p")[0])):
                         pNum = 1
                     description_ = tomd.convert(str(soup.select("#mw-content-text > p")[pNum])).strip().replace("<br/>", "\n")
-                em = discord.Embed(title=soup.find("h1", id='firstHeading').get_text(),
+                em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
                                    description=re.sub(r"\((\/\S*)\)", r"(https://wiki.factorio.com\1)", description_),
                                    url=url,
                                    colour=0x19B300)
-                if soup.find('div', class_="factorio-icon"):
+                if soup.find("div", class_="factorio-icon"):
                     em.set_thumbnail(url=f"https://wiki.factorio.com{soup.find('div', class_='factorio-icon').find('img')['src']}")
                 # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                 await bufferMsg.edit(embed=em)
