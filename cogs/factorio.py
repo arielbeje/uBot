@@ -49,7 +49,6 @@ class FactorioCog():
         em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
                            description="This may take a bit.",
                            colour=0xDFDE6E)
-        # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
             try:
@@ -100,7 +99,6 @@ class FactorioCog():
         em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in wiki.factorio.com...",
                            description="This shouldn't take long.",
                            colour=0xDFDE6E)
-        # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
             async with aiohttp.ClientSession() as client:
@@ -112,7 +110,6 @@ class FactorioCog():
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{searchterm.title()}\" in wiki.",
                                    colour=0xDC143C)
-                # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                 await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                 return
             if soup.find_all("ul", class_="mw-search-results"):
@@ -123,7 +120,6 @@ class FactorioCog():
                     item = item.find_next("div", class_="mw-search-result-heading").find("a")
                     itemlink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\)")
                     em.add_field(name=item["title"], value=f"[Read More](https://wiki.factorio.com{itemlink})", inline=True)
-                # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                 await bufferMsg.edit(embed=em)
             else:
                 description_ = ""
@@ -138,7 +134,6 @@ class FactorioCog():
                                    colour=0x19B300)
                 if soup.find("div", class_="factorio-icon"):
                     em.set_thumbnail(url=f"https://wiki.factorio.com{soup.find('div', class_='factorio-icon').find('img')['src']}")
-                # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                 await bufferMsg.edit(embed=em)
 
 

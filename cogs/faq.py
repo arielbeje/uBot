@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from fuzzywuzzy import fuzz
 
-import utils.customchecks as customchecks
+from utils import customchecks
 
 
 def faqdb(ctx, keys=False):
@@ -109,7 +109,7 @@ class FAQCog:
 
     @faq_command.command(name="add", aliases=["edit"])
     @customchecks.has_mod_role()
-    async def faq_add(self, ctx, title: str, *, content: str = ""):
+    async def faq_add(self, ctx, title: str, *, content: str=""):
         """
         Add a new tag to the FAQ tags.
         Can add an image by either attaching it to the message, or using ~~ imageurl at the end.
@@ -133,7 +133,6 @@ class FAQCog:
             em = discord.Embed(title="Error",
                                description="Content is required to add an FAQ tag.",
                                colour=0xDC143C)
-            # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
             await ctx.send(embed=em)
             return
 

@@ -1,8 +1,4 @@
-todo.txt
 __pycache__/
 /.vs/
-variables.json
-/uBot-env/
-.vscode/launch.json
-.vscode/settings.json
-variables.json
+.vscode/
+log.log

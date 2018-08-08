@@ -1,7 +1,7 @@
 import rethinkdb as r
 import discord
 from discord.ext import commands
-import utils.customchecks as customchecks
+from utils import customchecks
 
 
 class AdminCommands:
@@ -173,7 +173,6 @@ class AdminCommands:
             em.title = f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}",
         else:
             em.title = f"Successfully reset nickname in {ctx.guild.name}"
-        # em.set_footer(text=self.bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
 

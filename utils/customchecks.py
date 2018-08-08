@@ -14,6 +14,10 @@ class NoPermsError(commands.CheckFailure):
     pass
 
 
+class NoTokenError(Exception):
+    pass
+
+
 def has_any_role(*names):
     def predicate(ctx):
         msg = ctx.message
@@ -66,4 +70,3 @@ def is_owner():
         return True
 
     return commands.check(predicate)
-

@@ -1,37 +1,40 @@
 import asyncio
+import logbook
 import os
 import json
 import re
 import rethinkdb as r
+import sys
 
 import discord
 from discord.ext import commands
 
-import utils.customchecks as customchecks
+from utils import customchecks
 
-failedOps = 0
+
+logbook.FileHandler(filename="log.log",
+                    level=logbook.DEBUG,
+                    format_string="[{record.time:%d-%m-%Y %H:%M:%S.%f%z}] {record.level_name}: {record.message}",
+                    bubble=True).push_application()
+logbook.StreamHandler(stream=sys.stdout,
+                      level=logbook.NOTICE,
+                      format_string="[{record.time:%d-%m-%Y %H:%M:%S%z}] {record.level_name}: {record.message}").push_application()
 
 with open("variables.json", "r") as f:
     variables = json.load(f)
 
 if not variables["token"]:
-    failedOps += 1
-    print("No token inputted in variables.json."
-          "The bot will not run without it.")
+    logbook.critical("No token inputted in variables.json. "
+                     "The bot will not run without it.")
+    raise customchecks.NoTokenError()
 
 if not variables["joinleavechannelid"]:
-    print("No channel ID for the leave/join events was inputted in variables.json."
-          "The events will not run without it.")
+    logbook.warning("No channel ID for the leave/join events was inputted in variables.json."
+                    "The events will not run without it.")
     joinLeaveID = 0
-    failedOps += 1
 else:
     joinLeaveID = int(variables["joinleavechannelid"])
-    print(joinLeaveID)
-
-if not variables["myanimelist"]["login"] or variables["myanimelist"]["password"]:
-    print("No username/password inputted in variables.json."
-          "The MyAnimeList API requires them to function.")
-    failedOps += 1
+    logbook.info(f"Using channel with id {joinLeaveID} for join/leave events.")
 
 
 def get_prefix(bot, message):
@@ -65,24 +68,13 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_ready():
-    print(
-        f"\n~-~-~-~-~-~-~-~-~\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
-    servers = len(bot.guilds)
-    users = len(bot.users)
-    print(f"Serving {users} users in " + str(servers) +
-          " server" + ("s" if servers > 1 else "") + ".")
-    # Health log
-    if failedOps != 0:
-        print(f"{failedOps} operations failed.")
-    print(joinLeaveID)
-    print("~-~-~-~-~-~-~-~-~")
+    logger.notice(f"Logged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
+    logger.info(f"Serving {len(bot.users)} users in {len(bot.guilds)} server{('s' if servers > 1 else '')}.")
 
 
 @bot.event
 async def on_guild_join(guild):
-    print("~-~-~-~-~-~-~-~-~\n" +
-          f"Joined server {guild.id} - {guild.name}.\n" +
-          "~-~-~-~-~-~-~-~-~")
+    logger.info(f"Joined server {guild.id} - \'{guild.name}\'.")
     with r.connect(db="bot") as conn:
         if not r.table("servers").get(guild.id).run(conn):
             r.table("servers").insert({"id": guild.id,
@@ -94,9 +86,7 @@ async def on_guild_join(guild):
 
 @bot.event
 async def on_guild_remove(guild):
-    print("~-~-~-~-~-~-~-~-~\n" +
-          f"Left server {guild.id} - {guild.name}.\n" +
-          "~-~-~-~-~-~-~-~-~")
+    logger.info(f"Left server {guild.id} - \'{guild.name}\'.")
     with r.connect(db="bot") as conn:
         r.table("servers").get(guild.id).delete().run(conn)
 
@@ -126,25 +116,24 @@ async def on_message(message):
 async def on_member_join(member):
     if joinLeaveID is not 0:
         joinLeaveChannel = bot.get_channel(joinLeaveID)
-    await joinLeaveChannel.send(f"Join - {member.mention}, account created at {member.created_at}."
-                                f"ID {member.id}. {len(member.guild.members)} members.")
+        await joinLeaveChannel.send(f"Join - {member.mention}, account created at {member.created_at}.\n"
+                                    f"ID {member.id}. {len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_remove(member):
-    print(joinLeaveID)
     if joinLeaveID is not 0:
         joinLeaveChannel = bot.get_channel(joinLeaveID)
-    await joinLeaveChannel.send(f"Leave - {member.name}. ID {member.id}."
-                                f"{len(member.guild.members)} members.")
+        await joinLeaveChannel.send(f"Leave - {member.name}. ID {member.id}.\n"
+                                    f"{len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_ban(guild, member):
     if joinLeaveID is not 0:
         joinLeaveChannel = bot.get_channel(joinLeaveID)
-    await joinLeaveChannel.send(f"Ban - {member.name}, ID {member.id}."
-                                f"Joined at {member.joined_at}.")
+        await joinLeaveChannel.send(f"Ban - {member.name}, ID {member.id}."
+                                    f"Joined at {member.joined_at}.")
 
 
 if __name__ == "__main__":
@@ -157,17 +146,17 @@ if __name__ == "__main__":
             if filepath.endswith(".py"):
                 coglist.append(filepath.split(".py")[0].replace("\\", "."))
 
+    logbook.debug("Loading cogs...")
     for cog in coglist:
+        logbook.debug(f"Loading {cog}...")
         try:
             bot.load_extension(cog)
-            print(f"Loaded {cog} successfully")
+            logbook.info(f"Loaded {cog} successfully")
         except Exception:
-            # raise Exception
-            print(f"Failed to load cog: {cog}")
-            failedOps += 1
+            logbook.exception(f"Failed to load cog: {cog}")
             hadError = True
     if hadError:
-        print("Error during cog loading.")
+        logbook.warning("Error during cog loading.")
     else:
-        print("Successfully loaded all cogs.")
+        logbook.info("Successfully loaded all cogs.")
     bot.run(variables["token"], bot=True, reconnect=True)
