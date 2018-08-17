@@ -1,40 +1,41 @@
-import asyncio
-import logbook
-import os
 import json
+import logging
+import os
 import re
 import rethinkdb as r
-import sys
 
 import discord
 from discord.ext import commands
 
 from utils import customchecks
 
-
-logbook.FileHandler(filename="log.log",
-                    level=logbook.DEBUG,
-                    format_string="[{record.time:%d-%m-%Y %H:%M:%S.%f%z}] {record.level_name}: {record.message}",
-                    bubble=True).push_application()
-logbook.StreamHandler(stream=sys.stdout,
-                      level=logbook.NOTICE,
-                      format_string="[{record.time:%d-%m-%Y %H:%M:%S%z}] {record.level_name}: {record.message}").push_application()
+logging.basicConfig(level=logging.DEBUG,
+                    format="[%(asctime)s] [%(name)-19s] %(levelname)-8s: %(message)s",
+                    datefmt="%Y-%m-%dT%H:%M:%S%z",
+                    filename="log.log",
+                    filemode="w+")
+logger = logging.getLogger('root')
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(logging.Formatter(fmt="[%(asctime)s] %(levelname)-8s: %(message)s",
+                                  datefmt="%Y-%m-%dT%H:%M:%S%z"))
+logger.addHandler(ch)
 
 with open("variables.json", "r") as f:
     variables = json.load(f)
 
 if not variables["token"]:
-    logbook.critical("No token inputted in variables.json. "
-                     "The bot will not run without it.")
+    logger.critical("No token inputted in variables.json. "
+                    "The bot will not run without it")
     raise customchecks.NoTokenError()
 
 if not variables["joinleavechannelid"]:
-    logbook.warning("No channel ID for the leave/join events was inputted in variables.json."
-                    "The events will not run without it.")
+    logger.warn("No channel ID for the leave/join events was inputted in variables.json. "
+                "The events will not run without it")
     joinLeaveID = 0
 else:
     joinLeaveID = int(variables["joinleavechannelid"])
-    logbook.info(f"Using channel with id {joinLeaveID} for join/leave events.")
+    logger.info(f"Using channel with id {joinLeaveID} for join/leave events")
 
 
 def get_prefix(bot, message):
@@ -68,13 +69,13 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_ready():
-    logger.notice(f"Logged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}")
-    logger.info(f"Serving {len(bot.users)} users in {len(bot.guilds)} server{('s' if servers > 1 else '')}.")
+    logger.info(f"Logged in as: {bot.user.name} - {bot.user.id}")
+    logger.info(f"Serving {len(bot.users)} users in {len(bot.guilds)} server{('s' if len(bot.guilds) > 1 else '')}")
 
 
 @bot.event
 async def on_guild_join(guild):
-    logger.info(f"Joined server {guild.id} - \'{guild.name}\'.")
+    logger.info(f"Joined server \'{guild.name}\' - {guild.id}")
     with r.connect(db="bot") as conn:
         if not r.table("servers").get(guild.id).run(conn):
             r.table("servers").insert({"id": guild.id,
@@ -86,7 +87,7 @@ async def on_guild_join(guild):
 
 @bot.event
 async def on_guild_remove(guild):
-    logger.info(f"Left server {guild.id} - \'{guild.name}\'.")
+    logger.info(f"Left server \'{guild.name}\' - {guild.id}")
     with r.connect(db="bot") as conn:
         r.table("servers").get(guild.id).delete().run(conn)
 
@@ -146,17 +147,17 @@ if __name__ == "__main__":
             if filepath.endswith(".py"):
                 coglist.append(filepath.split(".py")[0].replace("\\", "."))
 
-    logbook.debug("Loading cogs...")
+    logger.debug("Loading cogs")
     for cog in coglist:
-        logbook.debug(f"Loading {cog}...")
+        logger.debug(f"Loading {cog}")
         try:
             bot.load_extension(cog)
-            logbook.info(f"Loaded {cog} successfully")
+            logger.debug(f"Loaded {cog} successfully")
         except Exception:
-            logbook.exception(f"Failed to load cog: {cog}")
+            logger.exception(f"Failed to load cog: {cog}")
             hadError = True
     if hadError:
-        logbook.warning("Error during cog loading.")
+        logger.warning("Error during cog loading")
     else:
-        logbook.info("Successfully loaded all cogs.")
+        logger.info("Successfully loaded all cogs")
     bot.run(variables["token"], bot=True, reconnect=True)

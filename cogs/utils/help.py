@@ -27,6 +27,7 @@ Everything else credit to SirThane#1780"""
 
 import inspect
 import itertools
+import logging
 import re
 import sys
 import traceback
@@ -34,6 +35,9 @@ import traceback
 import discord
 from discord.ext import commands
 from discord.ext.commands import formatter
+
+logger = logging.getLogger('root')
+
 
 empty = u'\u200b'
 
@@ -255,7 +259,7 @@ class Help(formatter.HelpFormatter):
                                   color=color, author=self.author)
         return embed
 
-    @commands.command(name='help', pass_context=True)
+    @commands.command(pass_context=True)
     async def help(self, ctx, *cmds: str):
         """Shows help documentation.
 
@@ -311,10 +315,10 @@ class Help(formatter.HelpFormatter):
     @help.error
     async def help_error(self, error, ctx):
         await self.send(self.destination, '{0.__name__}: {1}'.format(type(error), error))
-        traceback.print_tb(error.original.__traceback__, file=sys.stderr)
+        logger.exception()
 
     def __unload(self):
-        print('called __unload')
+        logger.info("help called __unload")
         self.bot.formatter = formatter.HelpFormatter()
         self.bot.add_command(orig_help)
 

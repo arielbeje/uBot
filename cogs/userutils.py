@@ -1,6 +1,5 @@
 from ago import human
 import aiohttp
-import asyncio
 import datetime
 import re
 import json
@@ -35,7 +34,7 @@ class UserUtils:
         self.bot = bot
         type(self).__name__ = "Utility Commands"
 
-    @commands.command(name='userinfo')
+    @commands.command(name="userinfo")
     async def user_info(self, ctx, user: discord.User=None):
         """Returns information about the given user"""
         if not user:
