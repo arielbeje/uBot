@@ -1,37 +1,31 @@
 import datetime
-import os
 import pytz
-import re
-import rethinkdb as r
 
 import discord
 from discord.ext import commands
 from fuzzywuzzy import fuzz
 
-from utils import customchecks
+from utils import assets, customchecks, sql
 
 
-def faqdb(ctx, keys=False):
-    with r.connect(db="bot") as conn:
-        returnDict = r.table("servers").get(
-            ctx.message.guild.id).pluck("faq").run(conn)["faq"]
-        if keys:
-            return list(returnDict.keys())
-        else:
-            return returnDict
+async def faqdb(ctx, query=None, keys=False):
+    if keys:
+        return([result["title"] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=$1 ORDER BY title", ctx.message.guild.id)])
+    if not query:
+        return await sql.fetch("SELECT * FROM faq WHERE serverid=$1", ctx.message.guild.id)
+    faqRow = await sql.fetch("SELECT * FROM faq WHERE serverid=$1 AND title=$2", ctx.message.guild.id, query)
+    return faqRow[0]
 
 
-def embed_faq(ctx, bot, query, title=None, color=None):
-    faquery = faqdb(ctx)[query]
-    if "link" in faquery:
-        faquery = faqdb(ctx)[faquery["link"]]
+async def embed_faq(ctx, bot, query, title=None, color=None):
+    faquery = await faqdb(ctx, query)
+    if faquery["link"] != "None":
+        faquery = await faqdb(ctx, faquery["link"])
     if not title:
         title = query.title()
     if not color:
-        color = 0xDFDE6E
-    content = faquery["content"]
-    image = faquery["image"]
-    timestamp = datetime.datetime.strptime(faquery["timestamp"], "%Y-%m-%d %H:%M:%S %Z")
+        color = assets.Colors.listing
+    image = None if faquery["image"] == "None" else faquery["image"]
     author = bot.get_user(int(faquery["creator"]))
     authorName = ctx.guild.get_member(author.id).display_name
     if author.avatar:
@@ -39,13 +33,12 @@ def embed_faq(ctx, bot, query, title=None, color=None):
     else:
         authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
     em = discord.Embed(title=title,
-                       description=content,
-                       timestamp=timestamp,
+                       description="" if faquery["content"] == "None" else faquery["content"],
+                       timestamp=faquery["timestamp"],
                        colour=color)
     if image:
         em.set_image(url=image)
     em.set_author(name=authorName, icon_url=authorPic)
-    # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
     return em
 
 
@@ -59,8 +52,7 @@ async def check_image(ctx, bot, title, name, link=""):
         em = discord.Embed(title="Error",
                            description="An invalid image was used."
                                        "The supported formats are `png`, `jpg`, `jpeg` & `gif`",
-                           colour=0xDC143C)
-        # em.set_footer(text=bot.user.name, icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+                           colour=assets.Colors.error)
         await ctx.send(embed=em)
         return False
 
@@ -77,33 +69,33 @@ class FAQCog:
         """
         query = query.lower()
         if not query:
-            faqstr = faqdb(ctx, keys=True)
-            faqstr.sort()
+            faqList = await faqdb(ctx, keys=True)
             em = discord.Embed(title="List of FAQ tags",
-                               description=", ".join(faqstr).title(),
-                               colour=0xDFDE6E)
+                               description=", ".join(faqList).title(),
+                               colour=assets.Colors.listing)
 
-        elif query in faqdb(ctx):
-            em = embed_faq(ctx, self.bot, query)
+        elif query in await faqdb(ctx, keys=True):
+            em = await embed_faq(ctx, self.bot, query)
 
         else:
             closeItems = []
-            for item in faqdb(ctx, keys=True):
-                if fuzz.ratio(query, item) >= 75:
-                    closeItems.append(item.title())
+            for item in await faqdb(ctx, keys=True):
+                itemRatio = fuzz.ratio(query, item)
+                if itemRatio >= 75:
+                    closeItems.append((itemRatio, item.title()))
             if len(closeItems) > 0:
                 if len(closeItems) == 1:
-                    em = embed_faq(ctx, self.bot, closeItems[0].lower(),
-                                   title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0]}\"?",
-                                   color=0xFF8C00)
+                    em = await embed_faq(ctx, self.bot, closeItems[0][1].lower(),
+                                         title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0]}\"?",
+                                         color=assets.Colors.warning)
                 else:
                     em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
-                                       description=f"Did you mean {', '.join(closeItems)}?",
-                                       colour=0xFF8C00)
+                                       description=f"Did you mean {', '.join([item[1] for item in closeItems])}?",
+                                       colour=assets.Colors.warning)
             else:
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags.",
-                                   colour=0xDC143C)
+                                   colour=assets.Colors.error)
                 em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
@@ -124,7 +116,7 @@ class FAQCog:
         if len(title) > 256:
             em = discord.Embed(title="Error",
                                description="The title inputted is too long.\nThe maximum title length is 256 characters.",
-                               colour=0xDC143C)
+                               colour=assets.Colors.error)
             await ctx.send(embed=em)
             return
         if (not content and
@@ -132,48 +124,44 @@ class FAQCog:
                 not imageURL):
             em = discord.Embed(title="Error",
                                description="Content is required to add an FAQ tag.",
-                               colour=0xDC143C)
+                               colour=assets.Colors.error)
             await ctx.send(embed=em)
             return
 
         else:
-            creator = str(ctx.message.author.id)
+            creator = ctx.message.author.id
             existed = False
-            if title in faqdb(ctx):
-                creator = faqdb(ctx)[title]["creator"]
+            if title in await faqdb(ctx, keys=True):
+                curFAQ = await faqdb(ctx, title)
+                creator = curFAQ["creator"]
                 existed = True
 
-            currentfaq = {}
-            currentfaq["content"] = content
-            currentfaq["image"] = ""
-            currentfaq["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-            currentfaq["creator"] = creator
+            image = None
+            timestamp = pytz.utc.localize(datetime.datetime.utcnow())
 
             if imageURL:
                 if not await check_image(ctx, self.bot, title, imageURL):
                     updatebool = False
                 else:
-                    currentfaq["image"] = imageURL
+                    image = imageURL
             elif ctx.message.attachments:
                 attachedFile = ctx.message.attachments[0]
                 attachedFileName = attachedFile.filename.lower()
                 if not await check_image(ctx, self.bot, title, attachedFileName, attachedFile.url):
                     updatebool = False
                 else:
-                    currentfaq["image"] = attachedFile.url
+                    image = attachedFile.url
 
         if updatebool:
-            with r.connect(db="bot") as conn:
-                faq = r.table("servers").get(
-                    ctx.message.guild.id).pluck("faq").run(conn)["faq"]
-                faq[title] = currentfaq
-                r.table("servers").get(ctx.message.guild.id).update(
-                    {"faq": faq}).run(conn)
-            embedTitle = f"Successfully added \"{title.title()}\" to database"
-            if existed:
+            if not existed:
+                await sql.execute("INSERT INTO faq VALUES($1, $2, $3, $4, $5, $6, $7)",
+                                  ctx.message.guild.id, title, content, image, creator, timestamp, None)
+                embedTitle = f"Successfully added \"{title.title()}\" to database"
+            else:
+                await sql.execute("UPDATE faq SET content=$1, image=$2, timestamp=$3 WHERE serverid=$4 AND title=$5",
+                                  content, image, timestamp, ctx.message.guild.id, title)
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
-
-            await ctx.send(embed=embed_faq(ctx, self.bot, title, embedTitle, 0x19B300))
+            await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, assets.Colors.success))
 
     @faq_command.command(name="remove", aliases=["delete"])
     @customchecks.has_mod_role()
@@ -182,23 +170,18 @@ class FAQCog:
         Remove a tag from the FAQ tags.
         """
         title = title.lower()
-        if title in faqdb(ctx):
-            em = embed_faq(ctx=ctx,
-                           bot=self.bot,
-                           query=title,
-                           title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
-                           color=0xDC143C)
-            with r.connect(db="bot") as conn:
-                faq = r.table("servers").get(
-                    ctx.message.guild.id).pluck("faq").run(conn)["faq"]
-                del faq[title]
-                r.table("servers").get(ctx.message.guild.id).update(
-                    {"faq": r.literal(faq)}).run(conn)
+        if title in await faqdb(ctx, keys=True):
+            em = await embed_faq(ctx=ctx,
+                                 bot=self.bot,
+                                 query=title,
+                                 title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
+                                 color=assets.Colors.error)
+            await sql.execute("DELETE FROM faq WHERE serverid=$1 AND title=$2", ctx.message.guild.id, title)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
                                description="Query not in FAQ tags.",
-                               colour=0xDC143C)
+                               colour=assets.Colors.error)
             await ctx.send(embed=em)
 
     @faq_command.command(name="link")
@@ -207,24 +190,20 @@ class FAQCog:
         """
         Makes a shortcut tag in the list of FAQ tags.
         """
-        if link in faqdb(ctx):
-            if title in faqdb(ctx):
-                em = embed_faq(ctx=ctx,
-                               bot=self.bot,
-                               query=title,
-                               title=f"Successfully edited \"{title.title()}\" to be a link for \"{link.title()}\"")
-            with r.connect(db="bot") as conn:
-                faq = r.table("servers").get(
-                    ctx.message.guild.id).pluck("faq").run(conn)["faq"]
-                faq[title] = {"link": link}
-                r.table("servers").get(ctx.message.guild.id).update(
-                    {"faq": faq}).run(conn)
+        curDB = await faqdb(ctx, keys=True)
+        if link in curDB:
+            if title in curDB:
+                em = await embed_faq(ctx=ctx,
+                                     bot=self.bot,
+                                     query=title,
+                                     title=f"Successfully edited \"{title.title()}\" to be a link for \"{link.title()}\"")
+            await sql.execute("INSERT INTO faq (serverid, title, link) VALUES ($1, $2, $3)", ctx.message.guild.id, title, link)
             em = discord.Embed(title=f"Successfully added tag \"{title}\" linking to \"{link}\"",
-                               colour=0x19B300)
+                               colour=assets.Colors.success)
         else:
             em = discord.Embed(title="Error",
                                description="The tag to link to does not exist in the list of FAQ tags.",
-                               colour=0xDC143C)
+                               colour=assets.Colors.error)
         await ctx.send(embed=em)
 
 

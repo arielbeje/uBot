@@ -1,10 +1,11 @@
 import aiohttp
 import json
-import os
 import random
 
 import discord
 from discord.ext import commands
+
+from utils import assets
 
 with open("data/imagedb.json", "r") as imgdatabase:
     imagedb = json.load(imgdatabase)
@@ -14,6 +15,12 @@ animedb = imagedb["anime"]
 
 with open("data/heresydb.json", "r") as heresydatabase:
     heresydb = json.load(heresydatabase)
+
+
+async def send_reaction_image(ctx, category):
+    em = discord.Embed()
+    em.set_image(url=random.choice(animedb[category]))
+    await ctx.send(embed=em)
 
 
 class FunCog():
@@ -28,7 +35,7 @@ class FunCog():
         """
         dogpic = f"https://random.dog/{random.choice(dogdb)}"
         em = discord.Embed(title="Random Dog!",
-                           colour=0x19B300)
+                           colour=assets.Colors.success)
         em.set_image(url=dogpic)
         em.set_footer(text="Powered by random.dog", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
@@ -43,14 +50,14 @@ class FunCog():
                 if r.status == 200:
                     js = await r.json()
                     em = discord.Embed(title="Random Cat!",
-                                       colour=0x19B300)
+                                       colour=assets.Colors.success)
                     em.set_image(url=js["file"])
                     em.set_footer(text="Powered by aws.random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                     await ctx.send(embed=em)
                 else:
                     em = discord.Embed(title="Error",
                                        description="Couldn't reach random.cat.\nTry again later.",
-                                       colour=0xDC143C)
+                                       colour=assets.Colors.error)
                     await ctx.send(embed=em)
 
     @commands.command(name="0.17")
@@ -74,7 +81,7 @@ class FunCog():
         Declares heresy.
         Can also declare heresy on a user.
         """
-        em = discord.Embed(colour=0x19B300)
+        em = discord.Embed(colour=assets.Colors.success)
         if user:
             em.description = f"{ctx.author.mention} declares heresy on {user.mention}!"
         else:
@@ -82,45 +89,66 @@ class FunCog():
         em.set_image(url=random.choice(heresydb))
         await ctx.send(embed=em)
 
-    @commands.command(name="images", aliases=["blush", "bully", "cuddle", "hug", "kiss", "lewd", "pat", "pout", "slap", "smug"])
-    async def image_macros(self, ctx, user: discord.User=None):
+    @commands.group(invoke_without_command=True)
+    async def reactions(self, ctx):
         """
-        Various image commands - blush, bully, cuddle, hug, kiss, lewd, pat, pout, slap, smug
+        Sends reaction images.
         """
-        usedCmd = ctx.invoked_with
-        author = ctx.message.author.mention
-        em = discord.Embed()
-        if usedCmd == "blush":
-            em.set_image(url=random.choice(animedb["blush"]))
-        elif usedCmd == "bully":
-            if not user:
-                em.description = f"{author} is a bully!"
-            else:
-                em.description = f"{author} is bullying {user.mention}!"
-            em.set_image(url=random.choice(animedb["bully"]))
-        elif usedCmd == "cuddle":
-            if not user:
-                em.description = f"Come here, {author}"
-            else:
-                em.description = f"{author} cuddles with {user.mention}"
-            em.set_image(url=random.choice(animedb["cuddle"]))
-        elif usedCmd == "hug":
-            em.set_image(url=random.choice(animedb["hug"]))
-        elif usedCmd == "kiss":
-            em.set_image(url=random.choice(animedb["kiss"]))
-        elif usedCmd == "lewd":
-            em.set_image(url=random.choice(animedb["lewd"]))
-        elif usedCmd == "pat":
-            if user:
-                em.description = f"{author} pats {user.mention}"
-            em.set_image(url=random.choice(animedb["pat"]))
-        elif usedCmd == "pout":
-            em.set_image(url=random.choice(animedb["pout"]))
-        elif usedCmd == "slap":
-            em.set_image(url=random.choice(animedb["slap"]))
-        else:
-            em.set_image(url=random.choice(animedb["smug"]))
+        em = discord.Embed(title="Wrong command",
+                           description=(f"To use reaction images, use {ctx.prefix}reactions and then one of these commands:\n" +
+                                        "blush, bully, cuddle, hug, kiss, lewd, pat, pout, slap"),
+                           colour=assets.Colors.error)
         await ctx.send(embed=em)
+
+    @reactions.command()
+    async def blush(self, ctx):
+        """Sends a blushing image."""
+        await send_reaction_image(ctx, "blush")
+
+    @reactions.command()
+    async def bully(self, ctx):
+        """Sends a bullying image."""
+        await send_reaction_image(ctx, "bully")
+
+    @reactions.command()
+    async def cuddle(self, ctx):
+        """Sends a cuddling image."""
+        await send_reaction_image(ctx, "cuddle")
+
+    @reactions.command()
+    async def hug(self, ctx):
+        """Sends a hugging image."""
+        await send_reaction_image(ctx, "hug")
+
+    @reactions.command()
+    async def kiss(self, ctx):
+        """Sends a kissing image."""
+        await send_reaction_image(ctx, "kiss")
+
+    @reactions.command()
+    async def lewd(self, ctx):
+        """Send a "lewd" image."""
+        await send_reaction_image(ctx, "lewd")
+
+    @reactions.command()
+    async def pat(self, ctx):
+        """Sends a patting image."""
+        await send_reaction_image(ctx, "pat")
+
+    @reactions.command()
+    async def pout(self, ctx):
+        """Sends a pouting image."""
+        await send_reaction_image(ctx, "pout")
+
+    @reactions.command()
+    async def slap(self, ctx):
+        """Sends a slapping image."""
+        await send_reaction_image(ctx, "slap")
+
+    @reactions.command()
+    async def smug(self, ctx):
+        """Sends a smug image."""
+        await send_reaction_image(ctx, "smug")
 
 
 def setup(bot):

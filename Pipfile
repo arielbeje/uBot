@@ -1,0 +1,27 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+ago = "*"
+aiohttp = "*"
+asyncpg = "*"
+"beautifulsoup4" = "*"
+fuzzywuzzy = "*"
+pytz = "*"
+rethinkdb = "*"
+tomd = "*"
+pynacl = "*"
+"discord.py" = {ref = "rewrite", git = "https://github.com/Rapptz/discord.py"}
+python-levenshtein = "*"
+
+[dev-packages]
+"flake8" = "*"
+
+[requires]
+python_version = "3.6"
+
+[scripts]
+start = "python main.py"
+initdb = "python utils/initdb.py"

@@ -1,8 +1,0 @@
-{
-    "token": "",
-    "prefixes": ["+"],
-    "comment": "||",
-    "botroles": ["Bot Commander"],
-    "modroles": ["Moderator", "Admin"],
-    "joinleavechannelid": ""
-}

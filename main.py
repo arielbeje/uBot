@@ -1,58 +1,37 @@
-import json
 import logging
 import os
 import re
-import rethinkdb as r
 
 import discord
 from discord.ext import commands
 
-from utils import customchecks
+from utils import assets, customchecks, sql
 
-logging.basicConfig(level=logging.DEBUG,
-                    format="[%(asctime)s] [%(name)-19s] %(levelname)-8s: %(message)s",
-                    datefmt="%Y-%m-%dT%H:%M:%S%z",
-                    filename="log.log",
-                    filemode="w+")
-logger = logging.getLogger('root')
+fh = logging.FileHandler("log.log", "w+", "utf-8")
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(logging.Formatter(fmt="[%(asctime)s] [%(name)-19s] %(levelname)-8s: %(message)s",
+                                  datefmt="%Y-%m-%dT%H:%M:%S%z"))
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 ch.setFormatter(logging.Formatter(fmt="[%(asctime)s] %(levelname)-8s: %(message)s",
                                   datefmt="%Y-%m-%dT%H:%M:%S%z"))
-logger.addHandler(ch)
+logging.basicConfig(handlers=[fh, ch],
+                    level=logging.DEBUG)
+logger = logging.getLogger('root')
 
-with open("variables.json", "r") as f:
-    variables = json.load(f)
-
-if not variables["token"]:
-    logger.critical("No token inputted in variables.json. "
+if "UBOT" not in os.environ:
+    logger.critical("Couldn't find a token. Please enter one in the UBOT environment variable. "
                     "The bot will not run without it")
     raise customchecks.NoTokenError()
 
-if not variables["joinleavechannelid"]:
-    logger.warn("No channel ID for the leave/join events was inputted in variables.json. "
-                "The events will not run without it")
-    joinLeaveID = 0
-else:
-    joinLeaveID = int(variables["joinleavechannelid"])
-    logger.info(f"Using channel with id {joinLeaveID} for join/leave events")
 
-
-def get_prefix(bot, message):
-    with r.connect(db="bot") as conn:
-        prefixes = r.table("servers").get(
-            message.guild.id).pluck("prefixes").run(conn)["prefixes"]
-
-    if message.guild is None:
-        return variables["prefixes"][0]
-
-    return commands.when_mentioned_or(*prefixes)(bot, message)
+async def get_prefix(bot, message):
+    prefixes = await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", message.guild.id)
+    prefixes = [prefix[0] for prefix in [prefix["prefix"] for prefix in prefixes]]
+    return commands.when_mentioned_or(*prefixes)(bot, message) if prefixes else commands.when_mentioned(bot, message)
 
 
 bot = commands.AutoShardedBot(command_prefix=get_prefix)
-
-if joinLeaveID is not 0:
-    joinLeaveChannel = bot.get_channel(joinLeaveID)
 
 
 @bot.event
@@ -61,8 +40,10 @@ async def on_command_error(ctx, error):
     if isinstance(origerror, customchecks.NoPermsError):
         em = discord.Embed(title="Error",
                            description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
-                           colour=0xDC143C)
+                           colour=assets.Colors.error)
         return await ctx.send(embed=em)
+    if isinstance(origerror, discord.ext.commands.errors.CommandNotFound):
+        pass
     else:
         raise error
 
@@ -76,32 +57,27 @@ async def on_ready():
 @bot.event
 async def on_guild_join(guild):
     logger.info(f"Joined server \'{guild.name}\' - {guild.id}")
-    with r.connect(db="bot") as conn:
-        if not r.table("servers").get(guild.id).run(conn):
-            r.table("servers").insert({"id": guild.id,
-                                       "prefixes": ["+"],
-                                       "faq": {},
-                                       "modroles": ["Bot Commander"]
-                                       }).run(conn)
+    await sql.initserver(guild.id)
 
 
 @bot.event
 async def on_guild_remove(guild):
     logger.info(f"Left server \'{guild.name}\' - {guild.id}")
-    with r.connect(db="bot") as conn:
-        r.table("servers").get(guild.id).delete().run(conn)
+    await sql.deleteserver(guild.id)
 
 wikiEx = re.compile(r"\[\[(.*?)\]\]")
-_wikiEx = re.compile(r"\`[\S\s]*?\[\[(.*?)\]\][\S\s]*?\`")
+negativeWikiEx = re.compile(r"\`[\S\s]*?\[\[(.*?)\]\][\S\s]*?\`")
 modEx = re.compile(r"\{\{(.*?)\}\}")
-_modEx = re.compile(r"\`[\S\s]*?\{\{(.*?)\}\}[\S\s]*?\`")
+negativeModEx = re.compile(r"\`[\S\s]*?\{\{(.*?)\}\}[\S\s]*?\`")
 
 
 @bot.event
 async def on_message(message):
     msg = message.content
-    wikiSearch = None if not wikiEx.search(msg) or _wikiEx.search(msg) else wikiEx.search(msg).group(1)
-    modSearch = None if not modEx.search(msg) or _modEx.search(msg) else modEx.search(msg).group(1)
+    comment = await sql.fetch("SELECT comment FROM servers WHERE serverid=$1", message.guild.id)
+    comment = comment[0]["comment"] if comment else comment
+    wikiSearch = None if not wikiEx.search(msg) or negativeWikiEx.search(msg) else wikiEx.search(msg).group(1)
+    modSearch = None if not modEx.search(msg) or negativeModEx.search(msg) else modEx.search(msg).group(1)
     if wikiSearch or modSearch:
         ctx = await bot.get_context(message)
         if wikiSearch:
@@ -109,31 +85,38 @@ async def on_message(message):
         elif modSearch:
             await ctx.invoke(bot.get_command("linkmod"), modname=modSearch)
     else:
-        message.content = message.content.split(variables["comment"])[0]
+        if comment:
+            message.content = message.content.split(comment)[0]
         await bot.process_commands(message)
 
 
 @bot.event
 async def on_member_join(member):
-    if joinLeaveID is not 0:
-        joinLeaveChannel = bot.get_channel(joinLeaveID)
-        await joinLeaveChannel.send(f"Join - {member.mention}, account created at {member.created_at}.\n"
+    joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
+    if joinLeaveID:
+        joinLeaveID = joinLeaveID[0]["joinleavechannel"]
+        joinLeaveChannel = bot.get_channel(int(joinLeaveID))
+        await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at}.\n"
                                     f"ID {member.id}. {len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_remove(member):
-    if joinLeaveID is not 0:
-        joinLeaveChannel = bot.get_channel(joinLeaveID)
-        await joinLeaveChannel.send(f"Leave - {member.name}. ID {member.id}.\n"
+    joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
+    if joinLeaveID:
+        joinLeaveID = joinLeaveID[0]["joinleavechannel"]
+        joinLeaveChannel = bot.get_channel(int(joinLeaveID))
+        await joinLeaveChannel.send(f"**Leave** - {member.name}. ID {member.id}.\n"
                                     f"{len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_ban(guild, member):
-    if joinLeaveID is not 0:
-        joinLeaveChannel = bot.get_channel(joinLeaveID)
-        await joinLeaveChannel.send(f"Ban - {member.name}, ID {member.id}."
+    joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
+    if joinLeaveID:
+        joinLeaveID = joinLeaveID[0]["joinleavechannel"]
+        joinLeaveChannel = bot.get_channel(int(joinLeaveID))
+        await joinLeaveChannel.send(f"**Ban** - {member.name}, ID {member.id}.\n"
                                     f"Joined at {member.joined_at}.")
 
 
@@ -145,7 +128,7 @@ if __name__ == "__main__":
         for filename in files:
             filepath = os.path.join(root, filename)
             if filepath.endswith(".py"):
-                coglist.append(filepath.split(".py")[0].replace("\\", "."))
+                coglist.append(filepath.split(".py")[0].replace(os.sep, "."))
 
     logger.debug("Loading cogs")
     for cog in coglist:
@@ -160,4 +143,4 @@ if __name__ == "__main__":
         logger.warning("Error during cog loading")
     else:
         logger.info("Successfully loaded all cogs")
-    bot.run(variables["token"], bot=True, reconnect=True)
+    bot.run(os.environ["UBOT"], bot=True, reconnect=True)

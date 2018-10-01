@@ -4,10 +4,11 @@ Code stolen from https://github.com/Rapptz/discord.py
 
 import asyncio
 import functools
-import rethinkdb as r
 
 import discord
 from discord.ext import commands
+
+from . import sql
 
 
 class NoPermsError(commands.CheckFailure):
@@ -45,17 +46,17 @@ def has_permissions(**perms):
 
 
 def has_mod_role():
-    def predicate(ctx):
+    async def predicate(ctx):
         msg = ctx.message
-        with r.connect(db="bot") as conn:
-            names = iter(r.table("servers").get(msg.guild.id).pluck("modroles").run(conn)["modroles"])
         if not msg.guild:
             raise NoPermsError()
             return False
         if msg.author.permissions_in(msg.channel).administrator:
             return True
+
         getter = functools.partial(discord.utils.get, msg.author.roles)
-        if not any(getter(name=name) is not None for name in names):
+        modroles = [int(result["roleid"]) for result in await sql.fetch("SELECT role FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
+        if not any(getter(id=role) is not None for role in modroles):
             raise NoPermsError()
             return False
         return True
