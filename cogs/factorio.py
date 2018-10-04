@@ -12,6 +12,7 @@ headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
 referEx = re.compile(r".*? may refer to\:")
 linkEx = re.compile(r"\((\/\S*)\)")
 fontEx = re.compile(r"<h\d>(.*?)(<font.*>(.*?)</font>)?</h\d>")
+langEx = re.compile(r"/(cs|de|es|fr|it|ja|nl|pl|pt-br|ru|sv|uk|zh|tr|ko|ms|da|hu|vi|pt-pt)$")
 
 
 async def get_response(url):
@@ -151,8 +152,9 @@ class FactorioCog():
                                    colour=assets.Colors.listing)
                 for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
                     item = item.find_next("div", class_="mw-search-result-heading").find("a")
-                    itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\)")
-                    em.add_field(name=item["title"], value=f"[Read More](https://wiki.factorio.com{itemLink})", inline=True)
+                    if langEx.search(item["title"]) is None:
+                        itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\)")
+                        em.add_field(name=item["title"], value=f"[Read More](https://wiki.factorio.com{itemLink})", inline=True)
                 await bufferMsg.edit(embed=em)
             else:
                 await bufferMsg.edit(embed=await wiki_embed(url))
