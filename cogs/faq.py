@@ -10,8 +10,8 @@ from utils import assets, customchecks, sql
 
 async def faqdb(ctx, query=None, keys=False):
     if keys:
-        return([result["title"] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=$1 ORDER BY title", ctx.message.guild.id)])
-    if not query:
+        return [result["title"] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=$1 ORDER BY title", ctx.message.guild.id)]
+    if query is None:
         return await sql.fetch("SELECT * FROM faq WHERE serverid=$1", ctx.message.guild.id)
     faqRow = await sql.fetch("SELECT * FROM faq WHERE serverid=$1 AND title=$2", ctx.message.guild.id, query)
     return faqRow[0]
@@ -19,13 +19,13 @@ async def faqdb(ctx, query=None, keys=False):
 
 async def embed_faq(ctx, bot, query, title=None, color=None):
     faquery = await faqdb(ctx, query)
-    if faquery["link"] != "None":
-        faquery = await faqdb(ctx, faquery["link"])
+    if faquery[6] is not None:  # link
+        faquery = await faqdb(ctx, str(faquery[6]))
     if not title:
-        title = query.title()
+        title = str(faquery[1]).title()
     if not color:
         color = assets.Colors.listing
-    image = None if faquery["image"] == "None" else faquery["image"]
+    image = None if faquery[3] is None else str(faquery[3])
     author = bot.get_user(int(faquery["creator"]))
     authorName = ctx.guild.get_member(author.id).display_name
     if author.avatar:
@@ -33,8 +33,8 @@ async def embed_faq(ctx, bot, query, title=None, color=None):
     else:
         authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
     em = discord.Embed(title=title,
-                       description="" if faquery["content"] == "None" else faquery["content"],
-                       timestamp=faquery["timestamp"],
+                       description="" if faquery[2] is None else str(faquery[2]),
+                       timestamp=faquery[5],
                        colour=color)
     if image:
         em.set_image(url=image)
@@ -86,7 +86,7 @@ class FAQCog:
             if len(closeItems) > 0:
                 if len(closeItems) == 1:
                     em = await embed_faq(ctx, self.bot, closeItems[0][1].lower(),
-                                         title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0]}\"?",
+                                         title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0][1]}\"?",
                                          color=assets.Colors.warning)
                 else:
                     em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
@@ -100,7 +100,7 @@ class FAQCog:
         await ctx.send(embed=em)
 
     @faq_command.command(name="add", aliases=["edit"])
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def faq_add(self, ctx, title: str, *, content: str=""):
         """
         Add a new tag to the FAQ tags.
@@ -164,7 +164,7 @@ class FAQCog:
             await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, assets.Colors.success))
 
     @faq_command.command(name="remove", aliases=["delete"])
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def faq_remove(self, ctx, *, title: str):
         """
         Remove a tag from the FAQ tags.
@@ -185,7 +185,7 @@ class FAQCog:
             await ctx.send(embed=em)
 
     @faq_command.command(name="link")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def faq_link(self, ctx, title: str, *, link: str):
         """
         Makes a shortcut tag in the list of FAQ tags.

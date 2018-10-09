@@ -46,7 +46,7 @@ async def execute(query, *args):
     conn = await asyncpg.connect(**connDetails)
     convertedArgs = []
     for arg in args:
-        if not isinstance(arg, datetime.datetime):
+        if not isinstance(arg, datetime.datetime) and arg is not None:
             convertedArgs.append(str(arg))
         else:
             convertedArgs.append(arg)
@@ -58,7 +58,7 @@ async def fetch(query, *args):
     conn = await asyncpg.connect(**connDetails)
     convertedArgs = []
     for arg in args:
-        if not isinstance(arg, datetime.datetime):
+        if not isinstance(arg, datetime.datetime) and arg is not None:
             convertedArgs.append(str(arg))
         else:
             convertedArgs.append(arg)

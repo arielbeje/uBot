@@ -1,13 +1,21 @@
-import logging
+import asyncio
 import os
 import re
+
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
 import discord
 from discord.ext import commands
 
 from utils import assets, customchecks, sql
 
-fh = logging.FileHandler("log.log", "w+", "utf-8")
+workDir = os.getcwd()
+logDir = os.path.join(workDir, "logs")
+if not os.path.exists(logDir):
+    os.makedirs(logDir)
+
+fh = TimedRotatingFileHandler("logs/log", "midnight", encoding="utf-8", backupCount=7)
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(logging.Formatter(fmt="[%(asctime)s] [%(name)-19s] %(levelname)-8s: %(message)s",
                                   datefmt="%Y-%m-%dT%H:%M:%S%z"))
@@ -25,6 +33,19 @@ if "UBOT" not in os.environ:
     raise customchecks.NoTokenError()
 
 
+async def initdb():
+    tables = [table["table_name"] for table in await sql.fetch("SELECT table_name FROM information_schema.tables")]
+    if any(table not in tables for table in ["servers", "faq", "prefixes", "modroles"]):
+        if "servers" not in tables:
+            await sql.execute("CREATE TABLE servers (serverid varchar(20) PRIMARY KEY, joinleavechannel varchar(20), comment text)")
+        if "faq" not in tables:
+            await sql.execute("CREATE TABLE faq (serverid varchar(20), title text, content text, image text, creator varchar(20), timestamp timestamptz, link text)")
+        if "prefixes" not in tables:
+            await sql.execute("CREATE TABLE prefixes (serverid varchar(20), prefix text)")
+        if "modroles" not in tables:
+            await sql.execute("CREATE TABLE modroles (serverid varchar(20), roleid varchar(20))")
+
+
 async def get_prefix(bot, message):
     prefixes = await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", message.guild.id)
     prefixes = [prefix[0] for prefix in [prefix["prefix"] for prefix in prefixes]]
@@ -40,6 +61,14 @@ async def on_command_error(ctx, error):
     if isinstance(origerror, customchecks.NoPermsError):
         em = discord.Embed(title="Error",
                            description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
+                           colour=assets.Colors.error)
+        return await ctx.send(embed=em)
+    if isinstance(origerror, commands.MissingPermissions):
+        missingPerms = [perm.replace('_', ' ').replace('guild', 'server').title() for perm in origerror.args[0]]
+        description = (f"You do not have sufficient permissions to use the command `{ctx.command}`:\n" +
+                       f"Missing permissions: {', '.join(missingPerms)}")
+        em = discord.Embed(title="Error",
+                           description=description,
                            colour=assets.Colors.error)
         return await ctx.send(embed=em)
     if isinstance(origerror, discord.ext.commands.errors.CommandNotFound):
@@ -73,9 +102,11 @@ negativeModEx = re.compile(r"\`[\S\s]*?\{\{(.*?)\}\}[\S\s]*?\`")
 
 @bot.event
 async def on_message(message):
+    if not isinstance(message.channel, discord.abc.GuildChannel):
+        return
     msg = message.content
     comment = await sql.fetch("SELECT comment FROM servers WHERE serverid=$1", message.guild.id)
-    comment = comment[0]["comment"] if comment else comment
+    comment = comment[0]["comment"] if str(comment[0]) != "None" else None
     wikiSearch = None if not wikiEx.search(msg) or negativeWikiEx.search(msg) else wikiEx.search(msg).group(1)
     modSearch = None if not modEx.search(msg) or negativeModEx.search(msg) else modEx.search(msg).group(1)
     if wikiSearch or modSearch:
@@ -85,7 +116,7 @@ async def on_message(message):
         elif modSearch:
             await ctx.invoke(bot.get_command("linkmod"), modname=modSearch)
     else:
-        if comment:
+        if comment is not None:
             message.content = message.content.split(comment)[0]
         await bot.process_commands(message)
 
@@ -93,17 +124,17 @@ async def on_message(message):
 @bot.event
 async def on_member_join(member):
     joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
-    if joinLeaveID:
+    if joinLeaveID is not None:
         joinLeaveID = joinLeaveID[0]["joinleavechannel"]
         joinLeaveChannel = bot.get_channel(int(joinLeaveID))
-        await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at}.\n"
+        await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at.isoformat()}.\n"
                                     f"ID {member.id}. {len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_remove(member):
     joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
-    if joinLeaveID:
+    if joinLeaveID is not None:
         joinLeaveID = joinLeaveID[0]["joinleavechannel"]
         joinLeaveChannel = bot.get_channel(int(joinLeaveID))
         await joinLeaveChannel.send(f"**Leave** - {member.name}. ID {member.id}.\n"
@@ -113,7 +144,7 @@ async def on_member_remove(member):
 @bot.event
 async def on_member_ban(guild, member):
     joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
-    if joinLeaveID:
+    if joinLeaveID is not None:
         joinLeaveID = joinLeaveID[0]["joinleavechannel"]
         joinLeaveChannel = bot.get_channel(int(joinLeaveID))
         await joinLeaveChannel.send(f"**Ban** - {member.name}, ID {member.id}.\n"
@@ -121,6 +152,8 @@ async def on_member_ban(guild, member):
 
 
 if __name__ == "__main__":
+    asyncio.get_event_loop().run_until_complete(initdb())
+
     hadError = False
     coglist = []
 

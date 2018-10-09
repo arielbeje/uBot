@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b4c970ca4cab86243f50dedca4d67b120ecc392600992c8b9de2ed3ca1d27bb3"
+            "sha256": "ebee0bb4da566d7fa5fb79afa881272a04ccbfede9b9673636a90bb3ddda905e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -18,10 +18,10 @@
     "default": {
         "ago": {
             "hashes": [
-                "sha256:81e838ef978a19f8a263e72e4ae75345b639943e9853b33c4572b04b1d6f01f9"
+                "sha256:9d1956edd8103c266d968ae2a7eaf2f23470b6384e655aaaf54d1158408178ad"
             ],
             "index": "pypi",
-            "version": "==0.0.92"
+            "version": "==0.0.93"
         },
         "aiohttp": {
             "hashes": [
@@ -53,11 +53,11 @@
         },
         "async-timeout": {
             "hashes": [
-                "sha256:474d4bc64cee20603e225eb1ece15e248962958b45a3648a9f5cc29e827a610c",
-                "sha256:b3c0ddc416736619bd4a95ca31de8da6920c3b9a140c64dbef2b2fa7bf521287"
+                "sha256:0c3c816a028d47f659d6ff5c745cb2acf1f966da1fe5c19c77a70282b25f4c5f",
+                "sha256:4291ca197d287d274d0b6cb5d6f8f8f82d434ed288f962539ff18cc9012f9ea3"
             ],
             "markers": "python_version >= '3.5.3'",
-            "version": "==3.0.0"
+            "version": "==3.0.1"
         },
         "asyncpg": {
             "hashes": [
@@ -143,7 +143,16 @@
         },
         "discord.py": {
             "git": "https://github.com/Rapptz/discord.py",
-            "ref": "836ae730401ea370aa10127bb9c86854c8b516ac"
+            "ref": "1da696258095d5c1171a1cdbe75f56c535c6683e"
+        },
+        "feedparser": {
+            "hashes": [
+                "sha256:bd030652c2d08532c034c27fcd7c85868e7fa3cb2b17f230a44a6bbc92519bf9",
+                "sha256:cd2485472e41471632ed3029d44033ee420ad0b57111db95c240c9160a85831c",
+                "sha256:ce875495c90ebd74b179855449040003a1beb40cd13d5f037a0654251e260b02"
+            ],
+            "index": "pypi",
+            "version": "==5.2.1"
         },
         "fuzzywuzzy": {
             "hashes": [
@@ -314,6 +323,13 @@
                 "sha256:8d616a382f243dbf19b54743f280b80198be0bca3a5396f1d2e1fca6223e8805"
             ],
             "version": "==1.6.0"
+        },
+        "rope": {
+            "hashes": [
+                "sha256:a108c445e1cd897fe19272ab7877d172e7faf3d4148c80e7d20faba42ea8f7b2"
+            ],
+            "index": "pypi",
+            "version": "==0.11.0"
         }
     }
 }

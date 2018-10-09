@@ -23,7 +23,7 @@ class AdminCommands:
             await ctx.send(f"This server does not have any defind mod roles.")
 
     @modroles.command(name="add")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def add_mod_role(self, ctx, *, role: discord.Role):
         """
         Add a new moderator role to the defined ones.
@@ -37,7 +37,7 @@ class AdminCommands:
                            f"To list all mod roles, use `{ctx.prefix}modroles`.")
 
     @modroles.command(name="remove", aliases=["delete"])
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def remove_mod_role(self, ctx, *, role: discord.Role):
         """
         Remove a moderator role from the defined list.
@@ -63,7 +63,7 @@ class AdminCommands:
                            f"To define prefixes, use `{ctx.prefix}prefixes`.")
 
     @prefixes.command(name="add")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def add_prefix(self, ctx, *, prefix: str):
         """
         Adds a prefix to the list of defined ones.
@@ -78,7 +78,7 @@ class AdminCommands:
                            f"To list all prefixes, use `{ctx.prefix}prefixes`.")
 
     @prefixes.command(name="remove")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def remove_prefix(self, ctx, *, prefix: str):
         """
         Removes a prefix from the defined list.
@@ -93,19 +93,19 @@ class AdminCommands:
                            f"To list all prefixes, use `{ctx.prefix}prefixes`.")
 
     @commands.command()
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def reset(self, ctx):
         """
         Resets the bot's settings for this server.
         Careful! This doesn't have a confirmation message yet!
         """
         # TODO: Add confirmation message
-        sql.deleteserver(ctx.message.guild.id)
-        sql.initserver(ctx.message.guild.id)
+        await sql.deleteserver(ctx.message.guild.id)
+        await sql.initserver(ctx.message.guild.id)
         await ctx.send("Reset all data for this server.")
 
     @commands.command(name="prune", aliases=["purge"])
-    @customchecks.has_mod_role()
+    @customchecks.has_permissions(manage_messages=True)
     async def prune(self, ctx, prunenum: int):
         """
         Prunes a certain amount of messages. Can also use message ID.
@@ -132,7 +132,7 @@ class AdminCommands:
             await ctx.send(embed=em)
 
     @commands.command(name="setnick")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def set_nick(self, ctx, *, nick=None):
         """
         Changes the bot's nickname in this server.
@@ -147,14 +147,14 @@ class AdminCommands:
         await ctx.send(embed=em)
 
     @commands.command(name="setcomment")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def set_comment(self, ctx, *, comment=None):
         """
         Set the comment symbol for this server.
         When executing commands, text after the symbol message will be ignored.
         Use without a comment after the command to set no comment.
         """
-        sql.execute("UPDATE servers SET comment='%s' WHERE serverid='%s'", (comment, ctx.message.guild.id))
+        await sql.execute("UPDATE servers SET comment=$1 WHERE serverid=$2", comment, ctx.message.guild.id)
         em = discord.Embed(colour=assets.Colors.success)
         if comment:
             em.title = f"Successfully changed comment symbol to `{comment}`."
@@ -163,18 +163,18 @@ class AdminCommands:
         await ctx.send(embed=em)
 
     @commands.command(name="setjoinleavechannel")
-    @customchecks.has_mod_role()
+    @customchecks.is_mod()
     async def set_joinleave_channel(self, ctx, channel: discord.TextChannel=None):
         """
         Set the channel for join/leave events.
         Use without additional arguments to disable the functionality.
         """
         if channel is not None:
-            sql.execute("UPDATE servers SET joinleavechannel='%s' WHERE serverid='%s'", (channel.id, ctx.message.guild.id))
+            await sql.execute("UPDATE servers SET joinleavechannel=$1 WHERE serverid=$2", channel.id, ctx.message.guild.id)
             em = discord.Embed(title=f"Successfully set join/leave events channel to {channel.mention}",
                                colour=assets.Colors.success)
         else:
-            sql.execute("UPDATE servers SET joinleavechannel='%s' WHERE serverid='%s'", (None, ctx.message.guild.id))
+            await sql.execute("UPDATE servers SET joinleavechannel=$1 WHERE serverid=$2", None, ctx.message.guild.id)
             em = discord.Embed(title="Successfully disabled join/leave events",
                                colour=assets.Colors.success)
         await ctx.send(embed=em)

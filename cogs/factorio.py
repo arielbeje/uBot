@@ -1,5 +1,6 @@
 import aiohttp
 import bs4
+import feedparser
 import tomd
 import re
 
@@ -13,9 +14,10 @@ referEx = re.compile(r".*? may refer to\:")
 linkEx = re.compile(r"\((\/\S*)\)")
 fontEx = re.compile(r"<h\d>(.*?)(<font.*>(.*?)</font>)?</h\d>")
 langEx = re.compile(r"/(cs|de|es|fr|it|ja|nl|pl|pt-br|ru|sv|uk|zh|tr|ko|ms|da|hu|vi|pt-pt)$")
+fffEx = re.compile(r"Friday Facts #(\d*)")
 
 
-async def get_response(url):
+async def get_soup(url):
     async with aiohttp.ClientSession() as client:
         async with client.get(url) as resp:
             status = resp.status
@@ -27,45 +29,74 @@ def mod_embed(result):
     taglist = []
     fields = []
     title = result.find("div", class_="mod-card-info-container").find("h2", class_="mod-card-title").find("a")
-    em = discord.Embed(title=title.get_text(),
+    em = discord.Embed(title=title.string,
                        url=f"https://mods.factorio.com{title['href'].replace(' ', '%20')}",
-                       description=result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-summary").get_text(),
+                       description=result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-summary").string,
                        colour=assets.Colors.success)
     thumbnail = result.find("div", class_="mod-card-thumbnail")
     if "no-picture" not in thumbnail.attrs["class"]:
         em.set_thumbnail(url=thumbnail.find("a").find("img")["src"])
     owner = result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-author").find("a")
-    fields.append({"name": "Owner", "value": f"[{owner.get_text()}]({owner['href']})"})
+    fields.append({"name": "Owner", "value": f"[{owner.string}](https://mods.factorio.com{owner['href']})"})
     for tag in result.find("div", class_="mod-card-footer").find("ul").find_all("li", class_="tag"):
         tag = tag.find("span").find("a")
-        taglist.append(f"[{tag.get_text()}]({tag['href']})")
+        taglist.append(f"[{tag.string}](https://mods.factorio.com{tag['href']})")
     gameVersions = result.find("div", class_="mod-card-info").find("span", title="Available for these Factorio versions")
     downloads = result.find("div", class_="mod-card-info").find("span", title="Downloads")
     createdAt = result.find("div", class_="mod-card-info").find("span", title="Last updated")
-    fields.extend([{"name": "Tags", "value": ', '.join(taglist)},
-                   {"name": "Game Version(s)", "value": gameVersions.find("div", class_="mod-card-info-tag-label").get_text()},
-                   {"name": "Downloads", "value": downloads.find("div", class_="mod-card-info-tag-label").get_text()},
-                   {"name": "Updated", "value": createdAt.find("div", class_="mod-card-info-tag-label").get_text()}])
+    fields.extend([{"name": "Category", "value": ', '.join(taglist)},
+                   {"name": "Game Version(s)", "value": gameVersions.find("div", class_="mod-card-info-tag-label").string},
+                   {"name": "Downloads", "value": downloads.find("div", class_="mod-card-info-tag-label").string},
+                   {"name": "Updated", "value": createdAt.find("div", class_="mod-card-info-tag-label").string}])
     for field in fields:
         em.add_field(**field, inline=True)
     return em
 
 
 def get_wiki_description(soup):
-    if soup.select("#mw-content-text > p"):
+    if soup.select(".mw-parser-output > p"):
         pNum = 0
-        if headerEx.search(str(soup.select("#mw-content-text > p")[0])):
+        if headerEx.search(str(soup.select(".mw-parser-output > p")[0])):
             pNum = 1
-        return tomd.convert(str(soup.select("#mw-content-text > p")[pNum])).strip().replace("<br/>", "\n")
+        return tomd.convert(str(soup.select(".mw-parser-output > p")[pNum])).strip().replace("<br/>", "\n")
     return ""
 
 
+async def embed_fff(number):
+    link = f"https://factorio.com/blog/post/fff-{number}"
+    response = await get_soup(link)
+    if response[0] == 200:
+        soup = response[1]
+        titleList = soup.find_all("h2")
+        em = discord.Embed(title=titleList[0].string.strip(),
+                           url=link,
+                           colour=assets.Colors.success)
+        titleList = titleList[1:]
+        if len(titleList) == 0:
+            titleList = soup.find_all("h4")
+        if len(titleList) == 0:
+            titleList = soup.find_all("h3")
+        for title in titleList:
+            result = fontEx.search(str(title))
+            if len([group for group in result.groups() if group is not None]) == 1:
+                name = result.group(1)
+            else:
+                name = result.group(1) + result.group(3)
+            em.add_field(name=name,
+                         value=tomd.convert(str(title.next_sibling.next_sibling)).strip())
+    else:
+        em = discord.Embed(title="Error",
+                           description=f"Couldn't find FFF #{number}.",
+                           colour=assets.Colors.error)
+    return em
+
+
 async def wiki_embed(url):
-    soup = get_response(url)[1]
-    description = await get_wiki_description()
+    soup = (await get_soup(url))[1]
+    description = get_wiki_description(soup)
     if "may refer to:" in description:
-        url = soup.select("#mw-content-text > ul > li > a")[0]["href"]
-        description = get_wiki_description(get_response(url)[1])
+        url = soup.select(".mw-parser-output > ul > li > a")[0]["href"]
+        description = get_wiki_description((await get_soup(url))[1])
 
     em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
                        description=linkEx.sub(r"(https://wiki.factorio.com\1)", description),
@@ -92,9 +123,9 @@ class FactorioCog():
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
             try:
-                soup = await get_response(f"https://mods.factorio.com/query/{modname.title()}")[1]
+                soup = (await get_soup(f"https://mods.factorio.com/query/{modname.title()}"))[1]
 
-                if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").get_text():
+                if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
                     em = discord.Embed(title="Error",
                                        description=f"Could not find \"{modname.title()}\" in mod portal.",
                                        colour=assets.Colors.error)
@@ -109,11 +140,12 @@ class FactorioCog():
                         for result in soup.find_all("div", class_="mod-card"):
                             if i <= 4:
                                 title = result.find("h2", class_="mod-card-title").find("a")
-                                if title.get_text().title() == modname.title():
+                                if title.string.title() == modname.title():
                                     em = mod_embed(result)
                                     break
-                                em.add_field(name=title.get_text(),
-                                             value=f"{result.find('div', class_='mod-card-summary').get_text()} [_Read More_](https://mods.factorio.com/mods{title['href']})")
+                                author = result.find("div", class_="mod-card-author").find("a").string
+                                em.add_field(name=f"{title.string} (by {author})",
+                                             value=f"{result.find('div', class_='mod-card-summary').string} [_Read More_](https://mods.factorio.com/mods{title['href']})")
                                 i += 1
 
                     else:
@@ -139,7 +171,7 @@ class FactorioCog():
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
             url = f"https://wiki.factorio.com/index.php?search={searchterm.replace(' ', '%20')}"
-            soup = get_response(url)[1]
+            soup = (await get_soup(url))[1]
             if soup.find("p", class_="mw-search-nonefound"):
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{searchterm.title()}\" in wiki.",
@@ -160,40 +192,39 @@ class FactorioCog():
                 await bufferMsg.edit(embed=await wiki_embed(url))
 
     @commands.command()
-    async def fff(self, ctx, number):
+    async def fff(self, ctx, number=None):
         """Links an fff with the number provided."""
-        try:
-            number = int(number)
-            link = f"https://factorio.com/blog/post/fff-{number}"
-            response = await get_response(link)
-            if response[0] == 200:
-                soup = response[1]
-                titleList = soup.find_all("h2")
-                em = discord.Embed(title=titleList[0].string.strip(),
-                                   url=link,
-                                   colour=assets.Colors.success)
-                titleList = titleList[1:]
-                if len(titleList) == 0:
-                    titleList = soup.find_all("h4")
-                if len(titleList) == 0:
-                    titleList = soup.find_all("h3")
-                for title in titleList:
-                    result = fontEx.search(str(title))
-                    if len([group for group in result.groups() if group is not None]) == 1:
-                        name = result.group(1)
-                    else:
-                        name = result.group(1) + result.group(3)
-                    em.add_field(name=name,
-                                 value=tomd.convert(str(title.next_sibling.next_sibling)).strip())
-            else:
+        bufferMsg = None
+        if number is not None:
+            try:
+                number = int(number)
+                em = await embed_fff(number)
+            except ValueError:
                 em = discord.Embed(title="Error",
-                                   description=f"Couldn't find FFF #{number}.",
+                                   description="To use the command, you need to input a number.",
                                    colour=assets.Colors.error)
-        except ValueError:
-            em = discord.Embed(title="Error",
-                               desctiption="To use the command, you need to input a number.",
-                               colour=assets.Colors.error)
-        await ctx.send(embed=em)
+        else:
+            em = discord.Embed(title=f"Searching for latest FFF...",
+                           description="This may take a bit.",
+                           colour=assets.Colors.listing)
+            bufferMsg = await ctx.send(embed=em)
+            async with ctx.channel.typing():
+                async with aiohttp.ClientSession() as client:
+                    async with client.get("https://www.factorio.com/blog/rss") as resp:
+                        status = resp.status
+                        r = await resp.text()
+                if status == 200:
+                    rss = feedparser.parse(r)
+                    i = 0
+                    entry = rss.entries[i]
+                    while "friday facts" not in entry.title.lower():
+                        i += 1
+                        entry = rss.entries[i]
+                    em = await embed_fff(fffEx.search(entry.title).group(1))
+        if not bufferMsg:
+            await ctx.send(embed=em) 
+        else:
+            await bufferMsg.edit(embed=em)
 
 
 def setup(bot):

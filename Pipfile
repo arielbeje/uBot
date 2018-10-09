@@ -15,9 +15,11 @@ tomd = "*"
 pynacl = "*"
 "discord.py" = {ref = "rewrite", git = "https://github.com/Rapptz/discord.py"}
 python-levenshtein = "*"
+feedparser = "*"
 
 [dev-packages]
 "flake8" = "*"
+rope = "*"
 
 [requires]
 python_version = "3.6"
