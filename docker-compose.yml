@@ -18,7 +18,7 @@ services:
     depends_on:
       - postgres
     volumes:
-      - "logs:/code/logs"
+      - "logs/:/code/logs"
     command: bash -c "./utils/wait-for-it.sh -h postgres -p 5432 && pipenv run start"
 
 volumes:

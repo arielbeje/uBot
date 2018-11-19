@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from utils import assets, customchecks, sql
+from utils import customchecks, sql
 
 
 class AdminCommands:
@@ -15,12 +15,16 @@ class AdminCommands:
         Lists the moderator roles defined for this server.
         """
         roleIDs = await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)
-        modroles = [self.bot.get_role(int(roleid)).name for roleid in [int(roleID["roleid"]) for roleID in roleIDs]]
+        modroles = [ctx.message.guild.get_role(int(roleid)).name for roleid in [int(roleID["roleid"]) for roleID in roleIDs]]
         if modroles:
-            await ctx.send(f"Defined mod roles for {ctx.message.guild.name}: `{'`, `'.join(modroles)}`\n" +
-                           f"To add more, use `{ctx.prefix}modroles add/remove [role]`.")
+            em = discord.Embed(title=f"Defined mod roles for {ctx.message.guild.name}",
+                               description=", ".join(modroles),
+                               colour=discord.Colour.gold())
         else:
-            await ctx.send(f"This server does not have any defind mod roles.")
+            em = discord.Embed(title="Error",
+                               description="This server does not have any defined mod roles.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
 
     @modroles.command(name="add")
     @customchecks.is_mod()
@@ -31,10 +35,14 @@ class AdminCommands:
         roleIDs = [int(roleID["roleid"]) for roleID in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
         if role.id not in roleIDs:
             await sql.execute("INSERT INTO modroles VALUES($1, $2)", ctx.message.guild.id, role.id)
-            await ctx.send(f"Successfully added \"{role.name}\" to mod roles list.")
+            em = discord.Embed(title=f"Succesfully added \"{role.name}\" to mod roles list",
+                               colour=discord.Colour.dark_green())
         else:
-            await ctx.send(f"\"{role.name}\" is already in the defined mod roles.\n" +
-                           f"To list all mod roles, use `{ctx.prefix}modroles`.")
+            em = discord.Embed(title="Error",
+                               description=f"\"{role.name}\" is already in the defined mod roles.\n" +
+                                           f"To list all mod roles, use `{ctx.prefix}modroles`.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
 
     @modroles.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
@@ -43,12 +51,16 @@ class AdminCommands:
         Remove a moderator role from the defined list.
         """
         roleIDs = [int(roleID["roleid"]) for roleID in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
-        if role.id not in roleIDs:
+        if role.id in roleIDs:
             await sql.execute("DELETE FROM modroles WHERE serverid=$1 AND roleid=$2", ctx.message.guild.id, role.id)
-            await ctx.send(f"Successfully removed \"{role.name}\" from mod roles list.")
+            em = discord.Embed(title=f"Succesfully removed \"{role.name}\" from mod roles list.",
+                               colour=discord.Colour.dark_green())
         else:
-            await ctx.send(f"\"{role.name}\" is not in the defined mod roles.\n" +
-                           f"To list all mod roles, use `{ctx.prefix}modroles`.")
+            em = discord.Embed(title="Error",
+                               description=f"\"{role.name}\" is not in the defined mod roles.\n" +
+                                           f"To list all mod roles, use `{ctx.prefix}modroles`.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
 
     @commands.group(invoke_without_command=True)
     async def prefixes(self, ctx):
@@ -57,10 +69,15 @@ class AdminCommands:
         """
         prefixes = [result["prefix"] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", ctx.message.guild.id)]
         if prefixes:
-            await ctx.send(f"Defined prefixes for {ctx.message.guild.name}: `{'`, `'.join(prefixes)}`.")
+            em = discord.Embed(title=f"Defined prefixes for {ctx.message.guild.name}",
+                               description=f"`{'`, `'.join(prefixes)}",
+                               colour=discord.Colour.gold())
         else:
-            await ctx.send("This server does not have any defined prefixes.\n" +
-                           f"To define prefixes, use `{ctx.prefix}prefixes`.")
+            em = discord.Embed(title="Error",
+                               description="This server does not have any defined prefixs.\n" +
+                                           f"To define prefixes, use `{ctx.prefix}prefixes`.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
 
     @prefixes.command(name="add")
     @customchecks.is_mod()
@@ -71,11 +88,15 @@ class AdminCommands:
         prefixes = [result["prefix"] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", ctx.message.guild.id)]
         if prefix not in prefixes:
             await sql.execute("INSERT INTO prefixes VALUES($1, $2)", ctx.message.guild.id, prefix)
-            await ctx.send(f"Added `{prefix}` to prefixes.\n" +
-                           f"To see see the list of all prefixes, use `{ctx.prefix}prefixes`")
+            em = discord.Embed(title=f"Added `{prefix}` to prefixes",
+                               description=f"To see the list of all defined prefixes, use `{prefix}prefixes`",
+                               colour=discord.Colour.dark_green())
         else:
-            await ctx.send(f"`{prefix}` is already in the defined prefixes.\n" +
-                           f"To list all prefixes, use `{ctx.prefix}prefixes`.")
+            em = discord.Embed(title=f"Error",
+                               description=f"`{prefix}` is already in the defined prefixes.\n" +
+                                           f"To see the list of all defined prefixes, use `{ctx.prefix}prefixes`.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
 
     @prefixes.command(name="remove")
     @customchecks.is_mod()
@@ -86,11 +107,15 @@ class AdminCommands:
         prefixes = [result["prefix"] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", ctx.message.guild.id)]
         if prefix in prefixes:
             await sql.execute("DELETE FROM prefixes WHERE serverid=$1 AND prefix=$2", ctx.message.guild.id, prefix)
-            await ctx.send(f"Removed `{prefix}` from prefixes.\n" +
-                           f"To see see the list of all prefixes, use `<@{self.bot.user.id}> prefixes`")
+            em = discord.Embed(title=f"Removed `{prefix}` from prefixes",
+                               description=f"To see the list of all defined prefixes, use {self.bot.user.mention} prefixes",
+                               colour=discord.Colour.dark_green())
         else:
-            await ctx.send(f"`{prefix}` is not in the defined prefixes.\n" +
-                           f"To list all prefixes, use `{ctx.prefix}prefixes`.")
+            em = discord.Embed(title=f"Error",
+                               description=f"`{prefix}` is not in the defined prefixes.\n" +
+                                           f"To see the list of all defined prefixes, use `{ctx.prefix}prefixes`.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
 
     @commands.command()
     @customchecks.is_mod()
@@ -102,9 +127,11 @@ class AdminCommands:
         # TODO: Add confirmation message
         await sql.deleteserver(ctx.message.guild.id)
         await sql.initserver(ctx.message.guild.id)
-        await ctx.send("Reset all data for this server.")
+        em = discord.Embed(title="Reset all data for this server",
+                           colour=discord.Colour.dark_green())
+        await ctx.send(embed=em)
 
-    @commands.command(name="prune", aliases=["purge"])
+    @commands.command(aliases=["purge"])
     @customchecks.has_permissions(manage_messages=True)
     async def prune(self, ctx, prunenum: int):
         """
@@ -120,16 +147,17 @@ class AdminCommands:
 
     @prune.error
     async def prune_error_handler(self, ctx, error):
-        if isinstance(error, commands.errors.CommandInvokeError):  # Invalid prune number.
+        origerror = getattr(error, "original", error)
+        if isinstance(origerror, discord.errors.NotFound):  # Invalid prune number.
             em = discord.Embed(title="Error",
                                description="That message ID is invalid.",
-                               colour=assets.Colors.error)
-            await ctx.send(embed=em)
-        elif isinstance(error, commands.errors.MissingRequiredArgument):
+                               colour=discord.Colour.red())
+            return await ctx.send(embed=em)
+        if isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
                                description=f"{ctx.prefix}prune requires a number of messages or a message ID.",
-                               colour=assets.Colors.error)
-            await ctx.send(embed=em)
+                               colour=discord.Colour.red())
+            return await ctx.send(embed=em)
 
     @commands.command(name="setnick")
     @customchecks.is_mod()
@@ -139,7 +167,7 @@ class AdminCommands:
         If no nickname is inputted, the nickname is reset.
         """
         await ctx.guild.me.edit(nick=nick)
-        em = discord.Embed(colour=assets.Colors.success)
+        em = discord.Embed(colour=discord.Colour.dark_green())
         if nick:
             em.title = f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}",
         else:
@@ -155,7 +183,7 @@ class AdminCommands:
         Use without a comment after the command to set no comment.
         """
         await sql.execute("UPDATE servers SET comment=$1 WHERE serverid=$2", comment, ctx.message.guild.id)
-        em = discord.Embed(colour=assets.Colors.success)
+        em = discord.Embed(colour=discord.Colour.dark_green())
         if comment:
             em.title = f"Successfully changed comment symbol to `{comment}`."
         else:
@@ -172,11 +200,11 @@ class AdminCommands:
         if channel is not None:
             await sql.execute("UPDATE servers SET joinleavechannel=$1 WHERE serverid=$2", channel.id, ctx.message.guild.id)
             em = discord.Embed(title=f"Successfully set join/leave events channel to {channel.mention}",
-                               colour=assets.Colors.success)
+                               colour=discord.Colour.dark_green())
         else:
             await sql.execute("UPDATE servers SET joinleavechannel=$1 WHERE serverid=$2", None, ctx.message.guild.id)
             em = discord.Embed(title="Successfully disabled join/leave events",
-                               colour=assets.Colors.success)
+                               colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
 

@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 from fuzzywuzzy import fuzz
 
-from utils import assets, customchecks, sql
+from utils import customchecks, sql
 
 
 async def faqdb(ctx, query=None, keys=False):
@@ -24,7 +24,7 @@ async def embed_faq(ctx, bot, query, title=None, color=None):
     if not title:
         title = str(faquery[1]).title()
     if not color:
-        color = assets.Colors.listing
+        color = discord.Colour.gold()
     image = None if faquery[3] is None else str(faquery[3])
     author = bot.get_user(int(faquery["creator"]))
     authorName = ctx.guild.get_member(author.id).display_name
@@ -52,7 +52,7 @@ async def check_image(ctx, bot, title, name, link=""):
         em = discord.Embed(title="Error",
                            description="An invalid image was used."
                                        "The supported formats are `png`, `jpg`, `jpeg` & `gif`",
-                           colour=assets.Colors.error)
+                           colour=discord.Colour.red())
         await ctx.send(embed=em)
         return False
 
@@ -70,9 +70,14 @@ class FAQCog:
         query = query.lower()
         if not query:
             faqList = await faqdb(ctx, keys=True)
-            em = discord.Embed(title="List of FAQ tags",
-                               description=", ".join(faqList).title(),
-                               colour=assets.Colors.listing)
+            if len(faqList) > 1:
+                em = discord.Embed(title="List of FAQ tags",
+                                   description=", ".join(faqList).title(),
+                                   colour=discord.Colour.gold())
+            else:
+                em = discord.Embed(title="Error",
+                                   description="This server does not have any defined FAQ tags.",
+                                   colour=discord.Colour.red())
 
         elif query in await faqdb(ctx, keys=True):
             em = await embed_faq(ctx, self.bot, query)
@@ -87,15 +92,15 @@ class FAQCog:
                 if len(closeItems) == 1:
                     em = await embed_faq(ctx, self.bot, closeItems[0][1].lower(),
                                          title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0][1]}\"?",
-                                         color=assets.Colors.warning)
+                                         color=discord.Colour.orange())
                 else:
                     em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
                                        description=f"Did you mean {', '.join([item[1] for item in closeItems])}?",
-                                       colour=assets.Colors.warning)
+                                       colour=discord.Colour.orange())
             else:
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags.",
-                                   colour=assets.Colors.error)
+                                   colour=discord.Colour.red())
                 em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
@@ -116,7 +121,7 @@ class FAQCog:
         if len(title) > 256:
             em = discord.Embed(title="Error",
                                description="The title inputted is too long.\nThe maximum title length is 256 characters.",
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
             await ctx.send(embed=em)
             return
         if (not content and
@@ -124,7 +129,7 @@ class FAQCog:
                 not imageURL):
             em = discord.Embed(title="Error",
                                description="Content is required to add an FAQ tag.",
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
             await ctx.send(embed=em)
             return
 
@@ -161,7 +166,7 @@ class FAQCog:
                 await sql.execute("UPDATE faq SET content=$1, image=$2, timestamp=$3 WHERE serverid=$4 AND title=$5",
                                   content, image, timestamp, ctx.message.guild.id, title)
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
-            await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, assets.Colors.success))
+            await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, discord.Colour.dark_green()))
 
     @faq_command.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
@@ -175,13 +180,13 @@ class FAQCog:
                                  bot=self.bot,
                                  query=title,
                                  title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
-                                 color=assets.Colors.error)
+                                 color=discord.Colour.red())
             await sql.execute("DELETE FROM faq WHERE serverid=$1 AND title=$2", ctx.message.guild.id, title)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
                                description="Query not in FAQ tags.",
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
             await ctx.send(embed=em)
 
     @faq_command.command(name="link")
@@ -199,11 +204,11 @@ class FAQCog:
                                      title=f"Successfully edited \"{title.title()}\" to be a link for \"{link.title()}\"")
             await sql.execute("INSERT INTO faq (serverid, title, link) VALUES ($1, $2, $3)", ctx.message.guild.id, title, link)
             em = discord.Embed(title=f"Successfully added tag \"{title}\" linking to \"{link}\"",
-                               colour=assets.Colors.success)
+                               colour=discord.Colour.dark_green())
         else:
             em = discord.Embed(title="Error",
                                description="The tag to link to does not exist in the list of FAQ tags.",
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
         await ctx.send(embed=em)
 
 

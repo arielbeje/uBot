@@ -2,7 +2,6 @@
 Code stolen from https://github.com/Rapptz/discord.py
 """
 
-import asyncio
 import functools
 
 import discord
@@ -55,8 +54,6 @@ def is_mod():
         if not msg.guild:
             raise NoPermsError()
             return False
-        if msg.author.permissions_in(msg.channel).administrator:
-            return True
 
         getter = functools.partial(discord.utils.get, msg.author.roles)
         modroles = [int(result["roleid"]) for result in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
@@ -91,7 +88,7 @@ def is_mod_or_has_permissions(**perms):
 
 def is_owner():
     async def predicate(ctx):
-        if not (yield from ctx.bot.is_owner(ctx.author)):
+        if not (await ctx.bot.is_owner(ctx.author)):
             raise NoPermsError()
         return True
 

@@ -89,8 +89,8 @@ async def executemany_queries(*queries):
 
 async def initserver(serverid):
     await executemany_queries(
-        ("INSERT INTO servers (serverid, comment) VALUES ($1, $2)", serverid, defaults["comment"]),
-        ("INSERT INTO prefixes VALUES ($1, $2)", serverid, defaults["prefix"])
+        ("INSERT INTO servers (serverid, comment) VALUES ($1, $2)", str(serverid), defaults["comment"]),
+        ("INSERT INTO prefixes VALUES ($1, $2)", str(serverid), defaults["prefix"])
     )
 
 

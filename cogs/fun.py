@@ -5,8 +5,6 @@ import random
 import discord
 from discord.ext import commands
 
-from utils import assets
-
 with open("data/imagedb.json", "r") as imgdatabase:
     imagedb = json.load(imgdatabase)
 
@@ -35,7 +33,7 @@ class FunCog():
         """
         dogpic = f"https://random.dog/{random.choice(dogdb)}"
         em = discord.Embed(title="Random Dog!",
-                           colour=assets.Colors.success)
+                           colour=discord.Colour.dark_green())
         em.set_image(url=dogpic)
         em.set_footer(text="Powered by random.dog", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
@@ -50,30 +48,30 @@ class FunCog():
                 if r.status == 200:
                     js = await r.json()
                     em = discord.Embed(title="Random Cat!",
-                                       colour=assets.Colors.success)
+                                       colour=discord.Colour.dark_green())
                     em.set_image(url=js["file"])
                     em.set_footer(text="Powered by aws.random.cat", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
                     await ctx.send(embed=em)
                 else:
                     em = discord.Embed(title="Error",
                                        description="Couldn't reach random.cat.\nTry again later.",
-                                       colour=assets.Colors.error)
+                                       colour=discord.Colour.red())
                     await ctx.send(embed=em)
 
-    @commands.command(name="0.17")
-    async def releaseDate(self, ctx):
+    @commands.command(name="0.18", aliases=[".18"])
+    async def release_date(self, ctx):
         """
-        Returns the release date of 0.17.
+        Returns the release date of 0.18.
         """
         rndInt = random.randint(0, 20)
         if rndInt == 1:
-            await ctx.send("0.17 has officially been cancelled.")
+            await ctx.send("0.18 has officially been cancelled.")
         elif rndInt == 2:
-            await ctx.send(f"0.17 will be out for release in just {random.randint(1, 59)} minutes!")
+            await ctx.send(f"0.18 will be out for release in just {random.randint(1, 59)} minutes!")
         elif rndInt == 3:
-            await ctx.send("0.17 will be released whenever Half-Life 3 comes out.")
+            await ctx.send("0.18 will be released whenever Half-Life 3 comes out.")
         else:
-            await ctx.send(f"0.17 is planned for release in {random.randint(1, 700)} days.")
+            await ctx.send(f"0.18 is planned for release in {random.randint(1, 700)} days.")
 
     @commands.command(name="heresy")
     async def heresy(self, ctx, user: discord.User=None):
@@ -81,7 +79,7 @@ class FunCog():
         Declares heresy.
         Can also declare heresy on a user.
         """
-        em = discord.Embed(colour=assets.Colors.success)
+        em = discord.Embed(colour=discord.Colour.dark_green())
         if user:
             em.description = f"{ctx.author.mention} declares heresy on {user.mention}!"
         else:
@@ -97,7 +95,7 @@ class FunCog():
         em = discord.Embed(title="Wrong command",
                            description=(f"To use reaction images, use {ctx.prefix}reactions and then one of these commands:\n" +
                                         "blush, bully, cuddle, hug, kiss, lewd, pat, pout, slap"),
-                           colour=assets.Colors.error)
+                           colour=discord.Colour.red())
         await ctx.send(embed=em)
 
     @reactions.command()

@@ -6,8 +6,6 @@ import html
 import discord
 from discord.ext import commands
 
-from utils import assets
-
 tagregex = re.compile(r"<.*?>")
 ampregex = re.compile(r"&amp;#(\d*);")
 
@@ -31,7 +29,7 @@ class UserUtils:
         if not user:
             user = ctx.message.author
         member = ctx.message.guild.get_member(user.id)
-        em = discord.Embed(colour=assets.Colors.listing)
+        em = discord.Embed(colour=discord.Colour.gold())
         inlineFields = [
             {"name": "ID", "value": member.id},
             {"name": "Nickname", "value": member.nick if not None else "None"},

@@ -7,14 +7,13 @@ import re
 import discord
 from discord.ext import commands
 
-from utils import assets
-
 headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
 referEx = re.compile(r".*? may refer to\:")
 linkEx = re.compile(r"\((\/\S*)\)")
 fontEx = re.compile(r"<h\d>(.*?)(<font.*>(.*?)</font>)?</h\d>")
 langEx = re.compile(r"/(cs|de|es|fr|it|ja|nl|pl|pt-br|ru|sv|uk|zh|tr|ko|ms|da|hu|vi|pt-pt)$")
 fffEx = re.compile(r"Friday Facts #(\d*)")
+markdownEx = re.compile(r"([~*_`])")
 
 
 async def get_soup(url):
@@ -29,10 +28,11 @@ def mod_embed(result):
     taglist = []
     fields = []
     title = result.find("div", class_="mod-card-info-container").find("h2", class_="mod-card-title").find("a")
+    summary = result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-summary").string
     em = discord.Embed(title=title.string,
                        url=f"https://mods.factorio.com{title['href'].replace(' ', '%20')}",
-                       description=result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-summary").string,
-                       colour=assets.Colors.success)
+                       description=markdownEx.sub(r"\\\1", summary),
+                       colour=discord.Colour.dark_green())
     thumbnail = result.find("div", class_="mod-card-thumbnail")
     if "no-picture" not in thumbnail.attrs["class"]:
         em.set_thumbnail(url=thumbnail.find("a").find("img")["src"])
@@ -44,7 +44,7 @@ def mod_embed(result):
     gameVersions = result.find("div", class_="mod-card-info").find("span", title="Available for these Factorio versions")
     downloads = result.find("div", class_="mod-card-info").find("span", title="Downloads")
     createdAt = result.find("div", class_="mod-card-info").find("span", title="Last updated")
-    fields.extend([{"name": "Category", "value": ', '.join(taglist)},
+    fields.extend([{"name": "Category", "value": "None" if len(taglist) == 0 else ", ".join(taglist)},
                    {"name": "Game Version(s)", "value": gameVersions.find("div", class_="mod-card-info-tag-label").string},
                    {"name": "Downloads", "value": downloads.find("div", class_="mod-card-info-tag-label").string},
                    {"name": "Updated", "value": createdAt.find("div", class_="mod-card-info-tag-label").string}])
@@ -70,24 +70,24 @@ async def embed_fff(number):
         titleList = soup.find_all("h2")
         em = discord.Embed(title=titleList[0].string.strip(),
                            url=link,
-                           colour=assets.Colors.success)
+                           colour=discord.Colour.dark_green())
         titleList = titleList[1:]
         if len(titleList) == 0:
             titleList = soup.find_all("h4")
         if len(titleList) == 0:
             titleList = soup.find_all("h3")
         for title in titleList:
-            result = fontEx.search(str(title))
+            result = fontEx.search(title.string)
             if len([group for group in result.groups() if group is not None]) == 1:
                 name = result.group(1)
             else:
                 name = result.group(1) + result.group(3)
             em.add_field(name=name,
-                         value=tomd.convert(str(title.next_sibling.next_sibling)).strip())
+                         value=tomd.convert(title.next_sibling.next_sibling.string).strip())
     else:
         em = discord.Embed(title="Error",
                            description=f"Couldn't find FFF #{number}.",
-                           colour=assets.Colors.error)
+                           colour=discord.Colour.red())
     return em
 
 
@@ -101,7 +101,7 @@ async def wiki_embed(url):
     em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
                        description=linkEx.sub(r"(https://wiki.factorio.com\1)", description),
                        url=url,
-                       colour=assets.Colors.success)
+                       colour=discord.Colour.dark_green())
     if soup.find("div", class_="factorio-icon"):
         em.set_thumbnail(url=f"https://wiki.factorio.com{soup.find('div', class_='factorio-icon').find('img')['src']}")
     return em
@@ -119,23 +119,23 @@ class FactorioCog():
         """
         em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
                            description="This may take a bit.",
-                           colour=assets.Colors.listing)
+                           colour=discord.Colour.gold())
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
-            try:
-                soup = (await get_soup(f"https://mods.factorio.com/query/{modname.title()}"))[1]
-
+            response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}")
+            if response == 200:
+                soup = response[1]
                 if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
                     em = discord.Embed(title="Error",
                                        description=f"Could not find \"{modname.title()}\" in mod portal.",
-                                       colour=assets.Colors.error)
+                                       colour=discord.Colour.red())
                     await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                     return
 
                 if soup.find_all("div", class_="mod-card"):
                     if len(soup.find_all("div", class_="mod-card")) > 1:
                         em = discord.Embed(title=f"Search results for \"{modname}\"",
-                                           colour=assets.Colors.listing)
+                                           colour=discord.Colour.gold())
                         i = 0
                         for result in soup.find_all("div", class_="mod-card"):
                             if i <= 4:
@@ -144,8 +144,9 @@ class FactorioCog():
                                     em = mod_embed(result)
                                     break
                                 author = result.find("div", class_="mod-card-author").find("a").string
+                                summary = markdownEx.sub(r"\\\1", result.find('div', class_='mod-card-summary').string)
                                 em.add_field(name=f"{title.string} (by {author})",
-                                             value=f"{result.find('div', class_='mod-card-summary').string} [_Read More_](https://mods.factorio.com/mods{title['href']})")
+                                             value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
                                 i += 1
 
                     else:
@@ -154,11 +155,11 @@ class FactorioCog():
                     await bufferMsg.edit(embed=em)
                     return
 
-            except (aiohttp.client_exceptions.ContentTypeError, KeyError):
+            else:
                 em = discord.Embed(title="Error",
                                    description="Couldn't reach mods.factorio.com.",
-                                   colour=assets.Colors.error)
-                bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                                   colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
     @commands.command()
     async def wiki(self, ctx, *, searchterm):
@@ -167,7 +168,7 @@ class FactorioCog():
         """
         em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in wiki.factorio.com...",
                            description="This shouldn't take long.",
-                           colour=assets.Colors.listing)
+                           colour=discord.Colour.gold())
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
             url = f"https://wiki.factorio.com/index.php?search={searchterm.replace(' ', '%20')}"
@@ -175,13 +176,13 @@ class FactorioCog():
             if soup.find("p", class_="mw-search-nonefound"):
                 em = discord.Embed(title="Error",
                                    description=f"Could not find \"{searchterm.title()}\" in wiki.",
-                                   colour=assets.Colors.error)
+                                   colour=discord.Colour.red())
                 await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
                 return
             if soup.find_all("ul", class_="mw-search-results"):
                 em = discord.Embed(title="Factorio Wiki",
                                    url=url,
-                                   colour=assets.Colors.listing)
+                                   colour=discord.Colour.gold())
                 for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
                     item = item.find_next("div", class_="mw-search-result-heading").find("a")
                     if langEx.search(item["title"]) is None:
@@ -202,11 +203,11 @@ class FactorioCog():
             except ValueError:
                 em = discord.Embed(title="Error",
                                    description="To use the command, you need to input a number.",
-                                   colour=assets.Colors.error)
+                                   colour=discord.Colour.red())
         else:
             em = discord.Embed(title=f"Searching for latest FFF...",
-                           description="This may take a bit.",
-                           colour=assets.Colors.listing)
+                               description="This may take a bit.",
+                               colour=discord.Colour.gold())
             bufferMsg = await ctx.send(embed=em)
             async with ctx.channel.typing():
                 async with aiohttp.ClientSession() as client:
@@ -222,9 +223,19 @@ class FactorioCog():
                         entry = rss.entries[i]
                     em = await embed_fff(fffEx.search(entry.title).group(1))
         if not bufferMsg:
-            await ctx.send(embed=em) 
+            await ctx.send(embed=em)
         else:
             await bufferMsg.edit(embed=em)
+
+    @commands.command(name="0.17", aliases=[".17"])
+    async def dot17(self, ctx):
+        """
+        Returns info about the release date of 0.17.
+        """
+        em = discord.Embed(title="0.17",
+                           description="\"We will release [0.17] during January 2019, we will announce it more precisely in advance.\"\n[Source - FFF 269](https://factorio.com/blog/post/fff-269)",
+                           colour=discord.Colour.gold())
+        await ctx.send(embed=em)
 
 
 def setup(bot):

@@ -8,7 +8,7 @@ from logging.handlers import TimedRotatingFileHandler
 import discord
 from discord.ext import commands
 
-from utils import assets, customchecks, sql
+from utils import customchecks, sql
 
 workDir = os.getcwd()
 logDir = os.path.join(workDir, "logs")
@@ -61,18 +61,23 @@ async def on_command_error(ctx, error):
     if isinstance(origerror, customchecks.NoPermsError):
         em = discord.Embed(title="Error",
                            description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
-                           colour=assets.Colors.error)
+                           colour=discord.Colour.red())
         return await ctx.send(embed=em)
-    if isinstance(origerror, commands.MissingPermissions):
+    elif isinstance(origerror, commands.MissingPermissions):
         missingPerms = [perm.replace('_', ' ').replace('guild', 'server').title() for perm in origerror.args[0]]
         description = (f"You do not have sufficient permissions to use the command `{ctx.command}`:\n" +
                        f"Missing permissions: {', '.join(missingPerms)}")
         em = discord.Embed(title="Error",
                            description=description,
-                           colour=assets.Colors.error)
+                           colour=discord.Colour.red())
         return await ctx.send(embed=em)
-    if isinstance(origerror, discord.ext.commands.errors.CommandNotFound):
+    elif isinstance(origerror, discord.ext.commands.errors.CommandNotFound):
         pass
+    elif isinstance(origerror, discord.errors.Forbidden):
+        em = discord.Embed(title="Error",
+                           description="I don't have sufficient permissions to do that.",
+                           colour=discord.Colour.red())
+        return await ctx.send(embed=em)
     else:
         raise error
 
@@ -123,9 +128,8 @@ async def on_message(message):
 
 @bot.event
 async def on_member_join(member):
-    joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
+    joinLeaveID = (await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id))[0]["joinleavechannel"]
     if joinLeaveID is not None:
-        joinLeaveID = joinLeaveID[0]["joinleavechannel"]
         joinLeaveChannel = bot.get_channel(int(joinLeaveID))
         await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at.isoformat()}.\n"
                                     f"ID {member.id}. {len(member.guild.members)} members.")
@@ -133,9 +137,8 @@ async def on_member_join(member):
 
 @bot.event
 async def on_member_remove(member):
-    joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
+    joinLeaveID = (await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id))[0]["joinleavechannel"]
     if joinLeaveID is not None:
-        joinLeaveID = joinLeaveID[0]["joinleavechannel"]
         joinLeaveChannel = bot.get_channel(int(joinLeaveID))
         await joinLeaveChannel.send(f"**Leave** - {member.name}. ID {member.id}.\n"
                                     f"{len(member.guild.members)} members.")
@@ -143,9 +146,8 @@ async def on_member_remove(member):
 
 @bot.event
 async def on_member_ban(guild, member):
-    joinLeaveID = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id)
+    joinLeaveID = (await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id))[0]["joinleavechannel"]
     if joinLeaveID is not None:
-        joinLeaveID = joinLeaveID[0]["joinleavechannel"]
         joinLeaveChannel = bot.get_channel(int(joinLeaveID))
         await joinLeaveChannel.send(f"**Ban** - {member.name}, ID {member.id}.\n"
                                     f"Joined at {member.joined_at}.")

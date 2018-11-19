@@ -4,7 +4,7 @@ import inspect
 import discord
 from discord.ext import commands
 
-from utils import assets, customchecks
+from utils import customchecks
 
 
 class OwnerCog():
@@ -23,7 +23,7 @@ class OwnerCog():
         if not url and not ctx.message.attachments:
             await self.bot.user.edit(avatar=None)
             em = discord.Embed(title="Successfully reset avatar.",
-                               colour=assets.Colors.success)
+                               colour=discord.Colour.dark_green())
         elif ctx.message.attachments:
             image = ctx.message.attachments[0]
             if image.filename.lower()[-3:] in ['png', 'jpg'] or image.filename.lower()[-4:] in ['jpeg']:
@@ -33,7 +33,7 @@ class OwnerCog():
                         r = await response.read()
                 await self.bot.user.edit(avatar=r)
                 em = discord.Embed(title="Successfully changed avatar to:",
-                                   colour=assets.Colors.success)
+                                   colour=discord.Colour.dark_green())
                 em.set_image(url=image.url)
         elif url:
             if url.lower()[-3:] in ['png', 'jpg'] or url.lower()[-4:] in ['jpeg']:
@@ -43,7 +43,7 @@ class OwnerCog():
                         r = await response.read()
                 await self.bot.user.edit(avatar=r)
                 em = discord.Embed(title="Successfully changed avatar to:",
-                                   colour=assets.Colors.success)
+                                   colour=discord.Colour.dark_green())
                 em.set_image(url=url)
         await ctx.send(embed=em)
 
@@ -56,13 +56,13 @@ class OwnerCog():
         if len(name) > 32:
             em = discord.Embed(title="Error",
                                description="The name inputted is too long.",
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
             em.set_footer(text="The maximum name length is 32.")
             await ctx.send(embed=em)
         else:
             await self.bot.user.edit(username=name)
             em = discord.Embed(title=f"Successfully changed name to {name}.",
-                               colour=assets.Colors.success)
+                               colour=discord.Colour.dark_green())
             await ctx.send(embed=em)
 
     @commands.command(name="eval", aliases=["debug"])
@@ -89,12 +89,12 @@ class OwnerCog():
         except Exception as e:
             em = discord.Embed(title="Error",
                                description=python.format(type(e).__name__ + ': ' + str(e)),
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
             await ctx.send(embed=em)
             return
         em = discord.Embed(title="Eval result",
                            description=python.format(result),
-                           colour=assets.Colors.success)
+                           colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
     @set_avatar.error
@@ -103,7 +103,7 @@ class OwnerCog():
         if isinstance(origerror, AssertionError):
             em = discord.Embed(title="Error",
                                description="The image/link inputted is invalid.",
-                               colour=assets.Colors.error)
+                               colour=discord.Colour.red())
             await ctx.send(embed=em)
 
     @commands.command(name="setplaying")
@@ -113,7 +113,7 @@ class OwnerCog():
         Sets "currently playing" status.
         """
         await self.bot.change_presence(game=discord.Game(name=game))
-        em = discord.Embed(colour=assets.Colors.success)
+        em = discord.Embed(colour=discord.Colour.dark_green())
         if game:
             em.title = f"Successfully set playing as {game}."
         else:
