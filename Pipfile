@@ -13,7 +13,7 @@ pytz = "*"
 rethinkdb = "*"
 tomd = "*"
 pynacl = "*"
-"discord.py" = {ref = "rewrite", git = "https://github.com/Rapptz/discord.py"}
+"discord.py" = {git = "https://github.com/Rapptz/discord.py",ref = "rewrite"}
 python-levenshtein = "*"
 feedparser = "*"
 
@@ -26,4 +26,3 @@ python_version = "3.6"
 
 [scripts]
 start = "python main.py"
-initdb = "python utils/initdb.py"

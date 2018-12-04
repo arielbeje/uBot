@@ -1,8 +1,8 @@
 import aiohttp
 import bs4
 import feedparser
-import tomd
 import re
+import tomd
 
 import discord
 from discord.ext import commands
@@ -77,13 +77,13 @@ async def embed_fff(number):
         if len(titleList) == 0:
             titleList = soup.find_all("h3")
         for title in titleList:
-            result = fontEx.search(title.string)
+            result = fontEx.search(str(title))
             if len([group for group in result.groups() if group is not None]) == 1:
                 name = result.group(1)
             else:
                 name = result.group(1) + result.group(3)
             em.add_field(name=name,
-                         value=tomd.convert(title.next_sibling.next_sibling.string).strip())
+                         value=tomd.convert(str(title.next_sibling.next_sibling)).strip())
     else:
         em = discord.Embed(title="Error",
                            description=f"Couldn't find FFF #{number}.",
@@ -123,7 +123,7 @@ class FactorioCog():
         bufferMsg = await ctx.send(embed=em)
         async with ctx.channel.typing():
             response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}")
-            if response == 200:
+            if response[0] == 200:
                 soup = response[1]
                 if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
                     em = discord.Embed(title="Error",
@@ -194,7 +194,9 @@ class FactorioCog():
 
     @commands.command()
     async def fff(self, ctx, number=None):
-        """Links an fff with the number provided."""
+        """
+        Links an fff with the number provided.
+        """
         bufferMsg = None
         if number is not None:
             try:

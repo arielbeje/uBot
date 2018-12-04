@@ -39,8 +39,7 @@ def has_permissions(**perms):
         missing = [perm for perm, value in perms.items() if getattr(permissions, perm, None) != value]
         if not missing:
             return True
-
-        raise NoPermsError()
+        raise commands.MissingPermissions(missing)
     return commands.check(predicate)
 
 
