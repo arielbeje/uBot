@@ -82,8 +82,19 @@ async def embed_fff(number):
                 name = result.group(1)
             else:
                 name = result.group(1) + result.group(3)
+            content = str(title.next_sibling.next_sibling)
+            if "<ol>" in content:
+                itemCount = 1
+                while "<li>" in content:
+                    content = content.replace("<li>", f"{itemCount}. ", 1)
+                    itemCount += 1
+            if "<ul>" in content:
+                content = content.replace("<li>", "- ")
+            for item in ["<ol>", "</ol>", "<ul>", "</ul>", "</li>"]:
+                    content = content.replace(item, "")
+            content = content.replace("\n\n", "\n")
             em.add_field(name=name,
-                         value=tomd.convert(str(title.next_sibling.next_sibling)).strip())
+                         value=tomd.convert(content).strip())
     else:
         em = discord.Embed(title="Error",
                            description=f"Couldn't find FFF #{number}.",
