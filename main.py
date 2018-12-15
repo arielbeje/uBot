@@ -101,8 +101,8 @@ async def on_guild_remove(guild):
 
 wikiEx = re.compile(r"\[\[(.*?)\]\]")
 negativeWikiEx = re.compile(r"\`[\S\s]*?\[\[(.*?)\]\][\S\s]*?\`")
-modEx = re.compile(r"\{\{(.*?)\}\}")
-negativeModEx = re.compile(r"\`[\S\s]*?\{\{(.*?)\}\}[\S\s]*?\`")
+modEx = re.compile(r"\>\>(.*?)\<\<")
+negativeModEx = re.compile(r"\`[\S\s]*?\>\>(.*?)\<\<[\S\s]*?\`")
 
 
 @bot.event

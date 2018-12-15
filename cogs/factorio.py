@@ -90,10 +90,12 @@ async def embed_fff(number):
                     itemCount += 1
             if "<ul>" in content:
                 content = content.replace("<li>", "- ")
-            for item in ["<ol>", "</ol>", "<ul>", "</ul>", "</li>"]:
-                    content = content.replace(item, "")
+            for item in ["<ol>", "</ol>", "<ul>", "</ul>", "</li>", "<br/>", "<p>", "</p>-"]:
+                content = content.replace(item, "")
+            for item in ["*", "_"]:
+                content = content.replace(item, "\\" + item)
             content = content.replace("\n\n", "\n")
-            em.add_field(name=name,
+            em.add_field(name=name.replace("amp;", ""),
                          value=tomd.convert(content).strip())
     else:
         em = discord.Embed(title="Error",
@@ -124,7 +126,7 @@ class FactorioCog():
         type(self).__name__ = "Factorio Commands"
 
     @commands.command(aliases=["mod"])
-    async def linkmod(self, ctx, *, modname):
+    async def linkmod(self, ctx, *, modname=None):
         """
         Search for a mod in [the Factorio mod portal](https://mods.factorio.com).
         """
@@ -132,45 +134,50 @@ class FactorioCog():
                            description="This may take a bit.",
                            colour=discord.Colour.gold())
         bufferMsg = await ctx.send(embed=em)
-        async with ctx.channel.typing():
-            response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}")
-            if response[0] == 200:
-                soup = response[1]
-                if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
+        if not modname:
+            em = discord.Embed(title="Error",
+                               description="To use the command, you need to enter a mod name to search.",
+                               colour=discord.Colour.red())
+        else:
+            async with ctx.channel.typing():
+                response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}")
+                if response[0] == 200:
+                    soup = response[1]
+                    if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
+                        em = discord.Embed(title="Error",
+                                           description=f"Could not find \"{modname.title()}\" in mod portal.",
+                                           colour=discord.Colour.red())
+                        await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                        return
+
+                    if soup.find_all("div", class_="mod-card"):
+                        if len(soup.find_all("div", class_="mod-card")) > 1:
+                            em = discord.Embed(title=f"Search results for \"{modname}\"",
+                                               colour=discord.Colour.gold())
+                            i = 0
+                            for result in soup.find_all("div", class_="mod-card"):
+                                if i <= 4:
+                                    title = result.find("h2", class_="mod-card-title").find("a")
+                                    if title.string.title() == modname.title():
+                                        em = mod_embed(result)
+                                        break
+                                    author = result.find("div", class_="mod-card-author").find("a").string
+                                    summary = markdownEx.sub(r"\\\1", result.find('div', class_='mod-card-summary').string)
+                                    em.add_field(name=f"{title.string} (by {author})",
+                                                 value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
+                                    i += 1
+
+                        else:
+                            em = mod_embed(soup.find("div", class_="mod-card"))
+
+                        await bufferMsg.edit(embed=em)
+                        return
+
+                else:
                     em = discord.Embed(title="Error",
-                                       description=f"Could not find \"{modname.title()}\" in mod portal.",
+                                       description="Couldn't reach mods.factorio.com.",
                                        colour=discord.Colour.red())
                     await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
-                    return
-
-                if soup.find_all("div", class_="mod-card"):
-                    if len(soup.find_all("div", class_="mod-card")) > 1:
-                        em = discord.Embed(title=f"Search results for \"{modname}\"",
-                                           colour=discord.Colour.gold())
-                        i = 0
-                        for result in soup.find_all("div", class_="mod-card"):
-                            if i <= 4:
-                                title = result.find("h2", class_="mod-card-title").find("a")
-                                if title.string.title() == modname.title():
-                                    em = mod_embed(result)
-                                    break
-                                author = result.find("div", class_="mod-card-author").find("a").string
-                                summary = markdownEx.sub(r"\\\1", result.find('div', class_='mod-card-summary').string)
-                                em.add_field(name=f"{title.string} (by {author})",
-                                             value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
-                                i += 1
-
-                    else:
-                        em = mod_embed(soup.find("div", class_="mod-card"))
-
-                    await bufferMsg.edit(embed=em)
-                    return
-
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Couldn't reach mods.factorio.com.",
-                                   colour=discord.Colour.red())
-                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
     @commands.command()
     async def wiki(self, ctx, *, searchterm):
