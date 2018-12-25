@@ -24,7 +24,7 @@ class UserUtils:
         type(self).__name__ = "Utility Commands"
 
     @commands.command(name="userinfo")
-    async def user_info(self, ctx, user: discord.User=None):
+    async def user_info(self, ctx, user: discord.User = None):
         """Returns information about the given user"""
         if not user:
             user = ctx.message.author

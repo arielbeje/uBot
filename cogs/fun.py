@@ -74,7 +74,7 @@ class FunCog():
             await ctx.send(f"0.18 is planned for release in {random.randint(1, 700)} days.")
 
     @commands.command(name="heresy")
-    async def heresy(self, ctx, user: discord.User=None):
+    async def heresy(self, ctx, user: discord.User = None):
         """
         Declares heresy.
         Can also declare heresy on a user.

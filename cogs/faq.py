@@ -63,7 +63,7 @@ class FAQCog:
         type(self).__name__ = "Frequently Asked Questions"
 
     @commands.group(name="faq", aliases=["tag", "tags", "faw"], invoke_without_command=True)
-    async def faq_command(self, ctx, *, query: str=""):
+    async def faq_command(self, ctx, *, query: str = ""):
         """
         Shows the list of available FAQ tags.
         """
@@ -106,7 +106,7 @@ class FAQCog:
 
     @faq_command.command(name="add", aliases=["edit"])
     @customchecks.is_mod()
-    async def faq_add(self, ctx, title: str, *, content: str=""):
+    async def faq_add(self, ctx, title: str, *, content: str = ""):
         """
         Add a new tag to the FAQ tags.
         Can add an image by either attaching it to the message, or using ~~ imageurl at the end.

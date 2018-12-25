@@ -17,6 +17,9 @@ markdownEx = re.compile(r"([~*_`])")
 
 
 async def get_soup(url):
+    """
+    Returns a list with the response code (as int) and a BeautifulSoup object of the URL
+    """
     async with aiohttp.ClientSession() as client:
         async with client.get(url) as resp:
             status = resp.status
@@ -25,6 +28,9 @@ async def get_soup(url):
 
 
 def mod_embed(result):
+    """
+    Returns a discord.Embed object derived from a mod page BeautifulSoup
+    """
     taglist = []
     fields = []
     title = result.find("div", class_="mod-card-info-container").find("h2", class_="mod-card-title").find("a")
@@ -54,6 +60,9 @@ def mod_embed(result):
 
 
 def get_wiki_description(soup):
+    """
+    Returns the first paragraph of a wiki page BeautifulSoup
+    """
     if soup.select(".mw-parser-output > p"):
         pNum = 0
         if headerEx.search(str(soup.select(".mw-parser-output > p")[0])):
@@ -63,6 +72,9 @@ def get_wiki_description(soup):
 
 
 async def embed_fff(number):
+    """
+    Returns a discord.Embed object derived from an fff number
+    """
     link = f"https://factorio.com/blog/post/fff-{number}"
     response = await get_soup(link)
     if response[0] == 200:
@@ -77,12 +89,15 @@ async def embed_fff(number):
         if len(titleList) == 0:
             titleList = soup.find_all("h3")
         for title in titleList:
+            # Check for smaller font tag and append it to the title
             result = fontEx.search(str(title))
             if len([group for group in result.groups() if group is not None]) == 1:
                 name = result.group(1)
             else:
                 name = result.group(1) + result.group(3)
             content = str(title.next_sibling.next_sibling)
+            if "<p>" not in content:
+                continue
             if "<ol>" in content:
                 itemCount = 1
                 while "<li>" in content:
@@ -90,8 +105,9 @@ async def embed_fff(number):
                     itemCount += 1
             if "<ul>" in content:
                 content = content.replace("<li>", "- ")
-            for item in ["<ol>", "</ol>", "<ul>", "</ul>", "</li>", "<br/>", "<p>", "</p>-"]:
+            for item in ["<ol>", "</ol>", "<ul>", "</ul>", "</li>", "<br/>"]:
                 content = content.replace(item, "")
+            # Escape Discord formatting characters
             for item in ["*", "_"]:
                 content = content.replace(item, "\\" + item)
             content = content.replace("\n\n", "\n")
@@ -204,7 +220,7 @@ class FactorioCog():
                 for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
                     item = item.find_next("div", class_="mw-search-result-heading").find("a")
                     if langEx.search(item["title"]) is None:
-                        itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\)")
+                        itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
                         em.add_field(name=item["title"], value=f"[Read More](https://wiki.factorio.com{itemLink})", inline=True)
                 await bufferMsg.edit(embed=em)
             else:

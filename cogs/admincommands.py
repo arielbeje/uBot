@@ -131,18 +131,18 @@ class AdminCommands:
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command(aliases=["purge"])
-    @customchecks.has_permissions(manage_messages=True)
-    async def prune(self, ctx, prunenum: int):
+    @commands.group(aliases=["purge"], invoke_without_command=True)
+    @customchecks.has_permissions(manage_messages=True, read_message_history=True)
+    async def prune(self, ctx, pruneNum: int):
         """
         Prunes a certain amount of messages. Can also use message ID.
-        Maximum amount of messages to prune is 300.
+        Maximum amount of messages to prune is 300, unless a message ID is specified.
         """
-        if prunenum < 300:
-            await ctx.channel.purge(limit=prunenum + 1)
+        if pruneNum < 300:
+            await ctx.channel.purge(limit=pruneNum + 1)
 
         else:
-            message = await ctx.get_message(prunenum)
+            message = await ctx.get_message(pruneNum)
             await ctx.channel.purge(after=message)
 
     @prune.error
@@ -155,7 +155,46 @@ class AdminCommands:
             return await ctx.send(embed=em)
         if isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
-                               description=f"{ctx.prefix}prune requires a number of messages or a message ID.",
+                               description=f"`{ctx.prefix}prune` requires a number of messages or a message ID.",
+                               colour=discord.Colour.red())
+            return await ctx.send(embed=em)
+
+    @prune.command(name="user")
+    @customchecks.has_permissions(manage_messages=True, read_message_history=True)
+    async def prune_member(self, ctx, wantedMember: discord.Member, pruneNum: int):
+        """
+        Prunes a certain amount of messages from a certain user. Can also use message ID.
+        Note: Will only scan up to 300 messages at a time, unless a message ID is specified.
+        """
+        if pruneNum < 300:
+            pruneCount = 0
+
+            def check(message):
+                isMember = message.author == wantedMember
+                if isMember:
+                    global pruneCount
+                    pruneCount += 1
+                return isMember and pruneCount <= pruneNum
+
+            await ctx.channel.purge(limit=300, check=check)
+        else:
+            def check(message):
+                return message.author == wantedMember
+
+            message = await ctx.get_message(pruneNum)
+            await ctx.channel.purge(after=message, check=check)
+
+    @prune_member.error
+    async def prune_member_error_handler(self, ctx, error):
+        origerror = getattr(error, "original", error)
+        if isinstance(origerror, discord.errors.NotFound):  # Invalid prune number.
+            em = discord.Embed(title="Error",
+                               description="That message ID/user is invalid.",
+                               colour=discord.Colour.red())
+            return await ctx.send(embed=em)
+        if isinstance(error, commands.errors.MissingRequiredArgument):
+            em = discord.Embed(title="Error",
+                               description=f"`{ctx.prefix}prune user` requires a user and a number of messages or a message ID.",
                                colour=discord.Colour.red())
             return await ctx.send(embed=em)
 
@@ -192,7 +231,7 @@ class AdminCommands:
 
     @commands.command(name="setjoinleavechannel")
     @customchecks.is_mod()
-    async def set_joinleave_channel(self, ctx, channel: discord.TextChannel=None):
+    async def set_joinleave_channel(self, ctx, channel: discord.TextChannel = None):
         """
         Set the channel for join/leave events.
         Use without additional arguments to disable the functionality.
