@@ -6,7 +6,8 @@ COPY . .
 
 RUN pip install --upgrade pip \
     && pip install pipenv \
-    && pipenv install --skip-lock
+    && pipenv install --skip-lock \
+    && apt-get install -y curl
 
-ENTRYPOINT ./utils/wait-for-it.sh -h postgres -p 5432 \
+ENTRYPOINT curl https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh | bash -s -h postgres -p 5432 \
            && pipenv run start

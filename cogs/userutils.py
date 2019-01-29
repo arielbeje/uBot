@@ -50,6 +50,15 @@ class UserUtils:
         em.set_footer(text=f"Created: {human(registeredAt, precision=4)} ({registeredAt.strftime('%d-%m-%Y %H:%M:%s %Z')})")
         await ctx.send(embed=em)
 
+    @commands.command()
+    async def info(self, ctx):
+        """Shows info about the bot"""
+        em = discord.Embed(title="uBot",
+                           colour=discord.Colour.gold())
+        em.add_field(name="Creator", value="arielbeje - <@114814850621898755>")
+        em.add_field(name="Source", value="[GitHub](https://github.com/arielbeje/uBot)")
+        await ctx.send(embed=em)
+
 
 def setup(bot):
     bot.add_cog(UserUtils(bot))

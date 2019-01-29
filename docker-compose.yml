@@ -19,7 +19,7 @@ services:
       - postgres
     volumes:
       - "logs/:/code/logs"
-    command: bash -c "./utils/wait-for-it.sh -h postgres -p 5432 && pipenv run start"
+    command: bash -c "curl https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh | bash -s -h postgres -p 5432 && pipenv run start"
 
 volumes:
   pgdata:

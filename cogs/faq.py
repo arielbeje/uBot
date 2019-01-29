@@ -99,7 +99,8 @@ class FAQCog:
                                        colour=discord.Colour.orange())
             else:
                 em = discord.Embed(title="Error",
-                                   description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags.",
+                                   description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags." + "\n" +
+                                               f"Would you like to search [the wiki](https://wiki.factorio.com/index.php?search={query.replace(' ', '%20')})?",
                                    colour=discord.Colour.red())
                 em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)

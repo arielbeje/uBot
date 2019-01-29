@@ -268,10 +268,7 @@ class FactorioCog():
         """
         Returns info about the release date of 0.17.
         """
-        em = discord.Embed(title="0.17",
-                           description="\"We will release [0.17] during January 2019, we will announce it more precisely in advance.\"\n[Source - FFF 269](https://factorio.com/blog/post/fff-269)",
-                           colour=discord.Colour.gold())
-        await ctx.send(embed=em)
+        await ctx.invoke(self.bot.get_command("faq"), query="0.17")
 
 
 def setup(bot):
