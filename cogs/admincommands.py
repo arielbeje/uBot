@@ -4,8 +4,9 @@ from discord.ext import commands
 from utils import customchecks, sql
 
 
-class AdminCommands:
+class AdminCommands(commands.Cog):
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         type(self).__name__ = "Admin Commands"
 
@@ -14,8 +15,8 @@ class AdminCommands:
         """
         Lists the moderator roles defined for this server.
         """
-        roleIDs = await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)
-        modroles = [ctx.message.guild.get_role(int(roleid)).name for roleid in [int(roleID["roleid"]) for roleID in roleIDs]]
+        roleIDs = await sql.fetch("SELECT roleid FROM modroles WHERE serverid=?", str(ctx.message.guild.id))
+        modroles = [ctx.message.guild.get_role(int(roleid)).name for roleid in [int(roleID[0]) for roleID in roleIDs]]
         if modroles:
             em = discord.Embed(title=f"Defined mod roles for {ctx.message.guild.name}",
                                description=", ".join(modroles),
@@ -32,9 +33,9 @@ class AdminCommands:
         """
         Add a new moderator role to the defined ones.
         """
-        roleIDs = [int(roleID["roleid"]) for roleID in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
+        roleIDs = [int(roleID[0]) for roleID in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=?", str(ctx.message.guild.id))]
         if role.id not in roleIDs:
-            await sql.execute("INSERT INTO modroles VALUES($1, $2)", ctx.message.guild.id, role.id)
+            await sql.execute("INSERT INTO modroles VALUES(?, ?)", (str(ctx.message.guild.id), str(role.id)))
             em = discord.Embed(title=f"Succesfully added \"{role.name}\" to mod roles list",
                                colour=discord.Colour.dark_green())
         else:
@@ -50,9 +51,9 @@ class AdminCommands:
         """
         Remove a moderator role from the defined list.
         """
-        roleIDs = [int(roleID["roleid"]) for roleID in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
+        roleIDs = [int(roleID[0]) for roleID in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=?", str(ctx.message.guild.id))]
         if role.id in roleIDs:
-            await sql.execute("DELETE FROM modroles WHERE serverid=$1 AND roleid=$2", ctx.message.guild.id, role.id)
+            await sql.execute("DELETE FROM modroles WHERE serverid=? AND roleid=?", (str(ctx.message.guild.id), str(role.id)))
             em = discord.Embed(title=f"Succesfully removed \"{role.name}\" from mod roles list.",
                                colour=discord.Colour.dark_green())
         else:
@@ -67,10 +68,10 @@ class AdminCommands:
         """
         List the available prefixes for this server.
         """
-        prefixes = [result["prefix"] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", ctx.message.guild.id)]
+        prefixes = [result[0] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=?", str(ctx.message.guild.id))]
         if prefixes:
             em = discord.Embed(title=f"Defined prefixes for {ctx.message.guild.name}",
-                               description=f"`{'`, `'.join(prefixes)}",
+                               description=f"`{'`, `'.join(prefixes)}`",
                                colour=discord.Colour.gold())
         else:
             em = discord.Embed(title="Error",
@@ -85,9 +86,9 @@ class AdminCommands:
         """
         Adds a prefix to the list of defined ones.
         """
-        prefixes = [result["prefix"] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", ctx.message.guild.id)]
+        prefixes = [result[0] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=?", str(ctx.message.guild.id))]
         if prefix not in prefixes:
-            await sql.execute("INSERT INTO prefixes VALUES($1, $2)", ctx.message.guild.id, prefix)
+            await sql.execute("INSERT INTO prefixes VALUES(?, ?)", (str(ctx.message.guild.id), prefix))
             em = discord.Embed(title=f"Added `{prefix}` to prefixes",
                                description=f"To see the list of all defined prefixes, use `{prefix}prefixes`",
                                colour=discord.Colour.dark_green())
@@ -104,9 +105,9 @@ class AdminCommands:
         """
         Removes a prefix from the defined list.
         """
-        prefixes = [result["prefix"] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", ctx.message.guild.id)]
+        prefixes = [result[0] for result in await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=?", str(ctx.message.guild.id))]
         if prefix in prefixes:
-            await sql.execute("DELETE FROM prefixes WHERE serverid=$1 AND prefix=$2", ctx.message.guild.id, prefix)
+            await sql.execute("DELETE FROM prefixes WHERE serverid=? AND prefix=?", (str(ctx.message.guild.id), prefix))
             em = discord.Embed(title=f"Removed `{prefix}` from prefixes",
                                description=f"To see the list of all defined prefixes, use {self.bot.user.mention} prefixes",
                                colour=discord.Colour.dark_green())
@@ -167,6 +168,7 @@ class AdminCommands:
         Note: Will only scan up to 300 messages at a time, unless a message ID is specified.
         """
         if pruneNum < 300:
+            global pruneCount
             pruneCount = 0
 
             def check(message):
@@ -221,7 +223,7 @@ class AdminCommands:
         When executing commands, text after the symbol message will be ignored.
         Use without a comment after the command to set no comment.
         """
-        await sql.execute("UPDATE servers SET comment=$1 WHERE serverid=$2", comment, ctx.message.guild.id)
+        await sql.execute("UPDATE servers SET comment=? WHERE serverid=?", (comment, str(ctx.message.guild.id)))
         em = discord.Embed(colour=discord.Colour.dark_green())
         if comment:
             em.title = f"Successfully changed comment symbol to `{comment}`."
@@ -237,11 +239,11 @@ class AdminCommands:
         Use without additional arguments to disable the functionality.
         """
         if channel is not None:
-            await sql.execute("UPDATE servers SET joinleavechannel=$1 WHERE serverid=$2", channel.id, ctx.message.guild.id)
+            await sql.execute("UPDATE servers SET joinleavechannel=? WHERE serverid=?", (str(channel.id), str(ctx.message.guild.id)))
             em = discord.Embed(title=f"Successfully set join/leave events channel to {channel.mention}",
                                colour=discord.Colour.dark_green())
         else:
-            await sql.execute("UPDATE servers SET joinleavechannel=$1 WHERE serverid=$2", None, ctx.message.guild.id)
+            await sql.execute("UPDATE servers SET joinleavechannel=? WHERE serverid=?", (None, str(ctx.message.guild.id)))
             em = discord.Embed(title="Successfully disabled join/leave events",
                                colour=discord.Colour.dark_green())
         await ctx.send(embed=em)

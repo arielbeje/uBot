@@ -10,31 +10,31 @@ from utils import customchecks, sql
 
 async def faqdb(ctx, query=None, keys=False):
     if keys:
-        return [result["title"] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=$1 ORDER BY title", ctx.message.guild.id)]
+        return [result[0] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=? ORDER BY title", str(ctx.message.guild.id))]
     if query is None:
-        return await sql.fetch("SELECT * FROM faq WHERE serverid=$1", ctx.message.guild.id)
-    faqRow = await sql.fetch("SELECT * FROM faq WHERE serverid=$1 AND title=$2", ctx.message.guild.id, query)
+        return await sql.fetch("SELECT * FROM faq WHERE serverid=?", str(ctx.message.guild.id))
+    faqRow = await sql.fetch("SELECT * FROM faq WHERE serverid=? AND title=?", str(ctx.message.guild.id), query)
     return faqRow[0]
 
 
 async def embed_faq(ctx, bot, query, title=None, color=None):
-    faquery = await faqdb(ctx, query)
-    if faquery[6] is not None:  # link
-        faquery = await faqdb(ctx, str(faquery[6]))
+    queryRow = await faqdb(ctx, query)
+    if queryRow[6] is not None:  # link
+        queryRow = await faqdb(ctx, str(queryRow[6]))
     if not title:
-        title = str(faquery[1]).title()
+        title = str(queryRow[1]).title()
     if not color:
         color = discord.Colour.gold()
-    image = None if faquery[3] is None else str(faquery[3])
-    author = bot.get_user(int(faquery["creator"]))
+    image = None if queryRow[3] is None else str(queryRow[3])
+    author = bot.get_user(int(queryRow[4]))
     authorName = ctx.guild.get_member(author.id).display_name
     if author.avatar:
         authorPic = f"https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
     else:
         authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
     em = discord.Embed(title=title,
-                       description="" if faquery[2] is None else str(faquery[2]),
-                       timestamp=faquery[5],
+                       description="" if queryRow[2] is None else str(queryRow[2]),
+                       timestamp=datetime.datetime.strptime(queryRow[5], "%Y-%m-%d %H:%M:%S.%f%z"),
                        colour=color)
     if image:
         em.set_image(url=image)
@@ -57,8 +57,9 @@ async def check_image(ctx, bot, title, name, link=""):
         return False
 
 
-class FAQCog:
+class FAQCog(commands.Cog):
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         type(self).__name__ = "Frequently Asked Questions"
 
@@ -70,7 +71,7 @@ class FAQCog:
         query = query.lower()
         if not query:
             faqList = await faqdb(ctx, keys=True)
-            if len(faqList) > 1:
+            if len(faqList) > 0:
                 em = discord.Embed(title="List of FAQ tags",
                                    description=", ".join(faqList).title(),
                                    colour=discord.Colour.gold())
@@ -139,7 +140,7 @@ class FAQCog:
             existed = False
             if title in await faqdb(ctx, keys=True):
                 curFAQ = await faqdb(ctx, title)
-                creator = curFAQ["creator"]
+                creator = curFAQ[4]
                 existed = True
 
             image = None
@@ -160,12 +161,12 @@ class FAQCog:
 
         if updatebool:
             if not existed:
-                await sql.execute("INSERT INTO faq VALUES($1, $2, $3, $4, $5, $6, $7)",
-                                  ctx.message.guild.id, title, content, image, creator, timestamp, None)
+                await sql.execute("INSERT INTO faq VALUES(?, ?, ?, ?, ?, ?, ?)",
+                                  (str(ctx.message.guild.id), title, content, image, creator, timestamp, None))
                 embedTitle = f"Successfully added \"{title.title()}\" to database"
             else:
-                await sql.execute("UPDATE faq SET content=$1, image=$2, timestamp=$3 WHERE serverid=$4 AND title=$5",
-                                  content, image, timestamp, ctx.message.guild.id, title)
+                await sql.execute("UPDATE faq SET content=?, image=?, timestamp=? WHERE serverid=? AND title=?",
+                                  (content, image, timestamp, str(ctx.message.guild.id), title))
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
             await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, discord.Colour.dark_green()))
 
@@ -182,7 +183,7 @@ class FAQCog:
                                  query=title,
                                  title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
                                  color=discord.Colour.red())
-            await sql.execute("DELETE FROM faq WHERE serverid=$1 AND title=$2", ctx.message.guild.id, title)
+            await sql.execute("DELETE FROM faq WHERE serverid=? AND title=?", (str(ctx.message.guild.id), title))
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
@@ -203,7 +204,7 @@ class FAQCog:
                                      bot=self.bot,
                                      query=title,
                                      title=f"Successfully edited \"{title.title()}\" to be a link for \"{link.title()}\"")
-            await sql.execute("INSERT INTO faq (serverid, title, link) VALUES ($1, $2, $3)", ctx.message.guild.id, title, link)
+            await sql.execute("INSERT INTO faq (serverid, title, link) VALUES (?, ?, ?)", (str(ctx.message.guild.id), title, link))
             em = discord.Embed(title=f"Successfully added tag \"{title}\" linking to \"{link}\"",
                                colour=discord.Colour.dark_green())
         else:

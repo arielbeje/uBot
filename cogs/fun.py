@@ -21,8 +21,9 @@ async def send_reaction_image(ctx, category):
     await ctx.send(embed=em)
 
 
-class FunCog():
+class FunCog(commands.Cog):
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         type(self).__name__ = "Fun Commands"
 

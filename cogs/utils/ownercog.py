@@ -7,14 +7,15 @@ from discord.ext import commands
 from utils import customchecks
 
 
-class OwnerCog():
+class OwnerCog(commands.Cog):
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         type(self).__name__ = "Owner Commands"
 
     @commands.command(name="setavatar", aliases=["changeavatar", "setpic"])
     @customchecks.is_owner()
-    async def set_avatar(self, ctx, url: str=""):
+    async def set_avatar(self, ctx, url: str = ""):
         """
         Changes the bot's avatar.
         Can attach an image or use a URL.
@@ -108,7 +109,7 @@ class OwnerCog():
 
     @commands.command(name="setplaying")
     @customchecks.is_owner()
-    async def set_playing(self, ctx, *, game: str=None):
+    async def set_playing(self, ctx, *, game: str = None):
         """
         Sets "currently playing" status.
         """

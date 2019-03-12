@@ -1,13 +1,10 @@
-FROM python:3.6
+FROM python:3.7
 
 RUN mkdir /code
 WORKDIR /code
 COPY . .
 
 RUN pip install --upgrade pip \
-    && pip install pipenv \
-    && pipenv install --skip-lock \
-    && apt-get install -y curl
+    && pip install .
 
-ENTRYPOINT curl https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh | bash -s -h postgres -p 5432 \
-           && pipenv run start
+ENTRYPOINT python main.py

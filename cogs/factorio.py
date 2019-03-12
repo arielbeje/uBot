@@ -65,9 +65,9 @@ def get_wiki_description(soup):
     """
     if soup.select(".mw-parser-output > p"):
         pNum = 0
-        if headerEx.search(str(soup.select(".mw-parser-output > p")[0])):
+        if headerEx.search(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[0])):
             pNum = 1
-        return tomd.convert(str(soup.select(".mw-parser-output > p")[pNum])).strip().replace("<br/>", "\n")
+        return tomd.convert(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[pNum])).strip().replace("<br/>", "\n")
     return ""
 
 
@@ -123,21 +123,61 @@ async def embed_fff(number):
 async def wiki_embed(url):
     soup = (await get_soup(url))[1]
     description = get_wiki_description(soup)
+    baseURL = "wiki.factorio.com" if not url.startswith('stable.') else "stable.wiki.factorio.com"
+    templateURL = r"(https://stable.wiki.factorio.com\1)" if url.startswith('stable.') else r"(https://wiki.factorio.com\1)"
     if "may refer to:" in description:
         url = soup.select(".mw-parser-output > ul > li > a")[0]["href"]
         description = get_wiki_description((await get_soup(url))[1])
 
     em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
-                       description=linkEx.sub(r"(https://wiki.factorio.com\1)", description),
+                       description=linkEx.sub(templateURL, description),
                        url=url,
                        colour=discord.Colour.dark_green())
     if soup.find("div", class_="factorio-icon"):
-        em.set_thumbnail(url=f"https://wiki.factorio.com{soup.find('div', class_='factorio-icon').find('img')['src']}")
+        em.set_thumbnail(url=f"https://{baseURL}{soup.find('div', class_='factorio-icon').find('img')['src']}")
     return em
 
 
-class FactorioCog():
+async def process_wiki(ctx, searchterm, stable=False):
+    baseURL = "wiki.factorio.com" if not stable else "stable.wiki.factorio.com"
+    em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in {baseURL}...",
+                       description="This shouldn't take long.",
+                       colour=discord.Colour.gold())
+    bufferMsg = await ctx.send(embed=em)
+    async with ctx.channel.typing():
+        url = f"https://{baseURL}/index.php?search={searchterm.replace(' ', '%20')}"
+        soup = (await get_soup(url))[1]
+        if soup.find("p", class_="mw-search-nonefound"):
+            em = discord.Embed(title="Error",
+                               description=f"Could not find \"{searchterm.title()}\" in {'' if not stable else 'stable '}wiki.",
+                               colour=discord.Colour.red())
+            await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+        else:
+            if soup.find_all("ul", class_="mw-search-results"):
+                engResults = []
+                em = discord.Embed(title=f"Factorio {'' if not stable else 'Stable '}Wiki",
+                                   url=url,
+                                   colour=discord.Colour.gold())
+                for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
+                    item = item.find_next("div", class_="mw-search-result-heading").find("a")
+                    if langEx.search(item["title"]) is None:
+                        engResults.append(item)
+                if (len(engResults) > 0):
+                    itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
+                    em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{itemLink})", inline=True)
+                else:
+                    em = discord.Embed(title="Error",
+                                       description=f"Could not find English results for \"{searchterm.title()}\" in {'' if not stable else 'stable '}wiki.",
+                                       colour=discord.Colour.red())
+                    await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                await bufferMsg.edit(embed=em)
+            else:
+                await bufferMsg.edit(embed=await wiki_embed(url))
+
+
+class FactorioCog(commands.Cog):
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         type(self).__name__ = "Factorio Commands"
 
@@ -200,31 +240,14 @@ class FactorioCog():
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
-        em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in wiki.factorio.com...",
-                           description="This shouldn't take long.",
-                           colour=discord.Colour.gold())
-        bufferMsg = await ctx.send(embed=em)
-        async with ctx.channel.typing():
-            url = f"https://wiki.factorio.com/index.php?search={searchterm.replace(' ', '%20')}"
-            soup = (await get_soup(url))[1]
-            if soup.find("p", class_="mw-search-nonefound"):
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find \"{searchterm.title()}\" in wiki.",
-                                   colour=discord.Colour.red())
-                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
-                return
-            if soup.find_all("ul", class_="mw-search-results"):
-                em = discord.Embed(title="Factorio Wiki",
-                                   url=url,
-                                   colour=discord.Colour.gold())
-                for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
-                    item = item.find_next("div", class_="mw-search-result-heading").find("a")
-                    if langEx.search(item["title"]) is None:
-                        itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
-                        em.add_field(name=item["title"], value=f"[Read More](https://wiki.factorio.com{itemLink})", inline=True)
-                await bufferMsg.edit(embed=em)
-            else:
-                await bufferMsg.edit(embed=await wiki_embed(url))
+        await process_wiki(ctx, searchterm)
+
+    @commands.command()
+    async def stablewiki(self, ctx, *, searchterm):
+        """
+        Searches for a term in the [official Stable Factorio wiki](https://stable.wiki.factorio.com/).
+        """
+        await process_wiki(ctx, searchterm, stable=True)
 
     @commands.command()
     async def fff(self, ctx, number=None):

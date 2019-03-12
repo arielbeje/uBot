@@ -18,8 +18,9 @@ def clean_xml(inputdata):
     return tagregex.sub("", html.unescape(ampregex.sub(amp_repl, inputdata)))
 
 
-class UserUtils:
+class UserUtils(commands.Cog):
     def __init__(self, bot):
+        super().__init__()
         self.bot = bot
         type(self).__name__ = "Utility Commands"
 

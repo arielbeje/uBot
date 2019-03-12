@@ -34,7 +34,7 @@ if "UBOT" not in os.environ:
 
 
 async def initdb():
-    tables = [table["table_name"] for table in await sql.fetch("SELECT table_name FROM information_schema.tables")]
+    tables = [table[0] for table in await sql.fetch("SELECT name FROM sqlite_master WHERE type='table'")]
     if any(table not in tables for table in ["servers", "faq", "prefixes", "modroles"]):
         if "servers" not in tables:
             await sql.execute("CREATE TABLE servers (serverid varchar(20) PRIMARY KEY, joinleavechannel varchar(20), comment text)")
@@ -47,8 +47,8 @@ async def initdb():
 
 
 async def get_prefix(bot, message):
-    prefixes = await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=$1", message.guild.id)
-    prefixes = [prefix[0] for prefix in [prefix["prefix"] for prefix in prefixes]]
+    prefixes = await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=?", str(message.guild.id))
+    prefixes = [prefix[0] for prefix in [prefix[0] for prefix in prefixes]]
     return commands.when_mentioned_or(*prefixes)(bot, message) if prefixes else commands.when_mentioned(bot, message)
 
 
@@ -110,8 +110,8 @@ async def on_message(message):
     if not isinstance(message.channel, discord.abc.GuildChannel):
         return
     msg = message.content
-    comment = await sql.fetch("SELECT comment FROM servers WHERE serverid=$1", message.guild.id)
-    comment = comment[0]["comment"] if str(comment[0]) != "None" else None
+    comment = await sql.fetch("SELECT comment FROM servers WHERE serverid=?", str(message.guild.id))
+    comment = comment[0][0] if len(comment) > 0 and str(comment[0]) != "None" else None
     wikiSearch = None if not wikiEx.search(msg) or negativeWikiEx.search(msg) else wikiEx.search(msg).group(1)
     modSearch = None if not modEx.search(msg) or negativeModEx.search(msg) else modEx.search(msg).group(1)
     if wikiSearch or modSearch:
@@ -128,29 +128,35 @@ async def on_message(message):
 
 @bot.event
 async def on_member_join(member):
-    joinLeaveID = (await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id))[0]["joinleavechannel"]
-    if joinLeaveID is not None:
-        joinLeaveChannel = bot.get_channel(int(joinLeaveID))
-        await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at.isoformat()}.\n"
-                                    f"ID {member.id}. {len(member.guild.members)} members.")
+    joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
+    if len(joinLeaveRow) > 0:  # To avoid errors if the bot was the one removed
+        joinLeaveID = joinLeaveRow[0][0]
+        if joinLeaveID is not None:
+            joinLeaveChannel = bot.get_channel(int(joinLeaveID))
+            await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at.isoformat()}.\n"
+                                        f"ID {member.id}. {len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_remove(member):
-    joinLeaveID = (await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id))[0]["joinleavechannel"]
-    if joinLeaveID is not None:
-        joinLeaveChannel = bot.get_channel(int(joinLeaveID))
-        await joinLeaveChannel.send(f"**Leave** - {member.name}. ID {member.id}.\n"
-                                    f"{len(member.guild.members)} members.")
+    joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
+    if len(joinLeaveRow) > 0:
+        joinLeaveID = joinLeaveRow[0][0]
+        if joinLeaveID is not None:
+            joinLeaveChannel = bot.get_channel(int(joinLeaveID))
+            await joinLeaveChannel.send(f"**Leave** - {member.name}. ID {member.id}.\n"
+                                        f"{len(member.guild.members)} members.")
 
 
 @bot.event
 async def on_member_ban(guild, member):
-    joinLeaveID = (await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=$1", member.guild.id))[0]["joinleavechannel"]
-    if joinLeaveID is not None:
-        joinLeaveChannel = bot.get_channel(int(joinLeaveID))
-        await joinLeaveChannel.send(f"**Ban** - {member.name}, ID {member.id}.\n"
-                                    f"Joined at {member.joined_at}.")
+    joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
+    if len(joinLeaveRow) > 0:
+        joinLeaveID = joinLeaveRow[0][0]
+        if joinLeaveID is not None:
+            joinLeaveChannel = bot.get_channel(int(joinLeaveID))
+            await joinLeaveChannel.send(f"**Ban** - {member.name}, ID {member.id}.\n"
+                                        f"Joined at {member.joined_at.isoformat()}.")
 
 
 if __name__ == "__main__":

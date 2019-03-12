@@ -55,7 +55,7 @@ def is_mod():
             return False
 
         getter = functools.partial(discord.utils.get, msg.author.roles)
-        modroles = [int(result["roleid"]) for result in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
+        modroles = [int(result[0]) for result in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=?", str(ctx.message.guild.id))]
         if not any(getter(id=role) is not None for role in modroles):
             raise NoPermsError()
             return False
@@ -73,7 +73,7 @@ def is_mod_or_has_permissions(**perms):
             return True
 
         getter = functools.partial(discord.utils.get, msg.author.roles)
-        modroles = [int(result["roleid"]) for result in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=$1", ctx.message.guild.id)]
+        modroles = [int(result[0]) for result in await sql.fetch("SELECT roleid FROM modroles WHERE serverid=?", str(ctx.message.guild.id))]
 
         ch = ctx.channel
         permissions = ch.permissions_for(ctx.author)

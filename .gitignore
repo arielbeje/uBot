@@ -1,5 +1,6 @@
 __pycache__/
 /.vs/
 .vscode/
-log.log
+logs/
 dbbackup/
+db.db
