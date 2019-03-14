@@ -10,9 +10,7 @@ with open("data/imagedb.json", "r") as imgdatabase:
 
 dogdb = imagedb["dogs"]
 animedb = imagedb["anime"]
-
-with open("data/heresydb.json", "r") as heresydatabase:
-    heresydb = json.load(heresydatabase)
+heresydb = imagedb["heresy"]
 
 
 async def send_reaction_image(ctx, category):
