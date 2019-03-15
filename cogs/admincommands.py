@@ -28,7 +28,7 @@ class AdminCommands(commands.Cog):
         await ctx.send(embed=em)
 
     @modroles.command(name="add")
-    @customchecks.is_mod()
+    @customchecks.has_permissions(administrator=True)
     async def add_mod_role(self, ctx, *, role: discord.Role):
         """
         Add a new moderator role to the defined ones.
@@ -44,6 +44,15 @@ class AdminCommands(commands.Cog):
                                            f"To list all mod roles, use `{ctx.prefix}modroles`.",
                                colour=discord.Colour.red())
         await ctx.send(embed=em)
+
+    @add_mod_role.error
+    async def add_mod_role_error_handler(self, ctx, error):
+        origerror = getattr(error, "original", error)
+        if isinstance(origerror, commands.errors.BadArgument):  # Bad role.
+            em = discord.Embed(title="Error",
+                               description="Couldn't find role.",
+                               colour=discord.Colour.red())
+            return await ctx.send(embed=em)
 
     @modroles.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
