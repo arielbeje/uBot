@@ -64,9 +64,7 @@ async def on_command_error(ctx, error):
                            colour=discord.Colour.red())
         return await ctx.send(embed=em)
     elif isinstance(origerror, commands.MissingPermissions):
-        missingPerms = [perm.replace('_', ' ').replace('guild', 'server').title() for perm in origerror.args[0]]
-        description = (f"You do not have sufficient permissions to use the command `{ctx.command}`:\n" +
-                       f"Missing permissions: {', '.join(missingPerms)}")
+        description = origerror.args[0].replace('run command', f'use the command `{ctx.command}`')
         em = discord.Embed(title="Error",
                            description=description,
                            colour=discord.Colour.red())
