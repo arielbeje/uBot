@@ -186,15 +186,16 @@ class FactorioCog(commands.Cog):
         """
         Search for a mod in [the Factorio mod portal](https://mods.factorio.com).
         """
-        em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
-                           description="This may take a bit.",
-                           colour=discord.Colour.gold())
-        bufferMsg = await ctx.send(embed=em)
         if not modname:
             em = discord.Embed(title="Error",
                                description="To use the command, you need to enter a mod name to search.",
                                colour=discord.Colour.red())
+            await ctx.send(embed=em)
         else:
+            em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
+                               description="This may take a bit.",
+                               colour=discord.Colour.gold())
+            bufferMsg = await ctx.send(embed=em)
             async with ctx.channel.typing():
                 response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}")
                 if response[0] == 200:
@@ -204,9 +205,8 @@ class FactorioCog(commands.Cog):
                                            description=f"Could not find \"{modname.title()}\" in mod portal.",
                                            colour=discord.Colour.red())
                         await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
-                        return
 
-                    if soup.find_all("div", class_="mod-card"):
+                    elif soup.find_all("div", class_="mod-card"):
                         if len(soup.find_all("div", class_="mod-card")) > 1:
                             em = discord.Embed(title=f"Search results for \"{modname}\"",
                                                colour=discord.Colour.gold())
@@ -227,8 +227,6 @@ class FactorioCog(commands.Cog):
                             em = mod_embed(soup.find("div", class_="mod-card"))
 
                         await bufferMsg.edit(embed=em)
-                        return
-
                 else:
                     em = discord.Embed(title="Error",
                                        description="Couldn't reach mods.factorio.com.",
