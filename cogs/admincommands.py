@@ -52,7 +52,7 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title="Error",
                                description="Couldn't find role.",
                                colour=discord.Colour.red())
-            return await ctx.send(embed=em)
+            await ctx.send(embed=em)
 
     @modroles.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
@@ -162,12 +162,12 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title="Error",
                                description="That message ID is invalid.",
                                colour=discord.Colour.red())
-            return await ctx.send(embed=em)
-        if isinstance(error, commands.errors.MissingRequiredArgument):
+            await ctx.send(embed=em)
+        elif isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
                                description=f"`{ctx.prefix}prune` requires a number of messages or a message ID.",
                                colour=discord.Colour.red())
-            return await ctx.send(embed=em)
+            await ctx.send(embed=em)
 
     @prune.command(name="user")
     @customchecks.has_permissions(manage_messages=True, read_message_history=True)
@@ -202,12 +202,12 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title="Error",
                                description="That message ID/user is invalid.",
                                colour=discord.Colour.red())
-            return await ctx.send(embed=em)
-        if isinstance(error, commands.errors.MissingRequiredArgument):
+            await ctx.send(embed=em)
+        elif isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
                                description=f"`{ctx.prefix}prune user` requires a user and a number of messages or a message ID.",
                                colour=discord.Colour.red())
-            return await ctx.send(embed=em)
+            await ctx.send(embed=em)
 
     @commands.command(name="setnick")
     @customchecks.is_mod()
