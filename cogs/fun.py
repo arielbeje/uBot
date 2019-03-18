@@ -86,6 +86,15 @@ class FunCog(commands.Cog):
         em.set_image(url=random.choice(heresydb))
         await ctx.send(embed=em)
 
+    @heresy.error
+    async def heresy_error_handler(self, ctx, error):
+        origerror = getattr(error, "original", error)
+        if isinstance(origerror, commands.errors.BadArgument):
+            em = discord.Embed(title="Error",
+                               description="Couldn't find user.",
+                               colour=discord.Colour.red())
+            await ctx.send(embed=em)
+
     @commands.group(invoke_without_command=True)
     async def reactions(self, ctx):
         """
