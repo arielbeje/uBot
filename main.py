@@ -77,6 +77,15 @@ async def on_command_error(ctx, error):
                            colour=discord.Colour.red())
         await ctx.send(embed=em)
     else:
+        try:
+            errorMsg = origerror.message
+        except AttributeError:
+            errorMsg = str(origerror)
+        em = discord.Embed(title="Error",
+                           description="I've encountered an error. Please contact my creator.\n" +
+                                       f"```{errorMsg}```",
+                           colour=discord.Colour.red())
+        await ctx.send(embed=em)
         raise error
 
 
