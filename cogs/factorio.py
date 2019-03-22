@@ -139,6 +139,10 @@ async def wiki_embed(url):
 
 
 async def process_wiki(ctx, searchterm, stable=False):
+    if not searchterm:
+        em = discord.Embed(title="Error",
+                           description="To use this command, you have to enter a term to search for.",
+                           colour=discord.Colour.red())
     baseURL = "wiki.factorio.com" if not stable else "stable.wiki.factorio.com"
     em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in {baseURL}...",
                        description="This shouldn't take long.",
@@ -234,14 +238,14 @@ class FactorioCog(commands.Cog):
                     await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
     @commands.command()
-    async def wiki(self, ctx, *, searchterm):
+    async def wiki(self, ctx, *, searchterm=None):
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
         await process_wiki(ctx, searchterm)
 
     @commands.command()
-    async def stablewiki(self, ctx, *, searchterm):
+    async def stablewiki(self, ctx, *, searchterm=None):
         """
         Searches for a term in the [official Stable Factorio wiki](https://stable.wiki.factorio.com/).
         """
