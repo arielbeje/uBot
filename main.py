@@ -138,7 +138,7 @@ async def on_member_join(member):
         if joinLeaveID is not None:
             joinLeaveChannel = bot.get_channel(int(joinLeaveID))
             await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at.isoformat()}.\n"
-                                        f"ID {member.id}. {len(member.guild.members)} members.")
+                                        f"ID {member.id}. {member.guild.member_count} members.")
 
 
 @bot.event
@@ -149,7 +149,7 @@ async def on_member_remove(member):
         if joinLeaveID is not None:
             joinLeaveChannel = bot.get_channel(int(joinLeaveID))
             await joinLeaveChannel.send(f"**Leave** - {member.name}. ID {member.id}.\n"
-                                        f"{len(member.guild.members)} members.")
+                                        f"{member.guild.member_count} members.")
 
 
 @bot.event
