@@ -16,15 +16,13 @@ if not os.path.exists(logDir):
     os.makedirs(logDir)
 
 fh = TimedRotatingFileHandler("logs/log", "midnight", encoding="utf-8", backupCount=7)
-fh.setLevel(logging.DEBUG)
 fh.setFormatter(logging.Formatter(fmt="[%(asctime)s] [%(name)-19s] %(levelname)-8s: %(message)s",
                                   datefmt="%Y-%m-%dT%H:%M:%S%z"))
 ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
 ch.setFormatter(logging.Formatter(fmt="[%(asctime)s] %(levelname)-8s: %(message)s",
                                   datefmt="%Y-%m-%dT%H:%M:%S%z"))
 logging.basicConfig(handlers=[fh, ch],
-                    level=logging.DEBUG)
+                    level=logging.INFO)
 logger = logging.getLogger('root')
 
 if "UBOT" not in os.environ:
