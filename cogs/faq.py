@@ -106,7 +106,7 @@ class FAQCog(commands.Cog):
                 em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
         await ctx.send(embed=em)
 
-    @faq_command.command(name="add", aliases=["edit"])
+    @faq_command.command(name="add", aliases=["edit", "new"])
     @customchecks.is_mod()
     async def faq_add(self, ctx, title: str, *, content: str = ""):
         """
