@@ -219,7 +219,7 @@ class AdminCommands(commands.Cog):
         await ctx.guild.me.edit(nick=nick)
         em = discord.Embed(colour=discord.Colour.dark_green())
         if nick:
-            em.title = f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}",
+            em.title = f"Successfully changed nickname to \"{nick}\" in {ctx.guild.name}"
         else:
             em.title = f"Successfully reset nickname in {ctx.guild.name}"
         await ctx.send(embed=em)
