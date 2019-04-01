@@ -21,23 +21,10 @@ class OwnerCog(commands.Cog):
         Can attach an image or use a URL.
         If no avatar is given, the avatar is reset.
         """
-        if not url and not ctx.message.attachments:
-            await self.bot.user.edit(avatar=None)
-            em = discord.Embed(title="Successfully reset avatar.",
-                               colour=discord.Colour.dark_green())
-        elif ctx.message.attachments:
-            image = ctx.message.attachments[0]
-            if image.filename.lower()[-3:] in ['png', 'jpg'] or image.filename.lower()[-4:] in ['jpeg']:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(image.url) as response:
-                        assert response.status == 200
-                        r = await response.read()
-                await self.bot.user.edit(avatar=r)
-                em = discord.Embed(title="Successfully changed avatar to:",
-                                   colour=discord.Colour.dark_green())
-                em.set_image(url=image.url)
-        elif url:
-            if url.lower()[-3:] in ['png', 'jpg'] or url.lower()[-4:] in ['jpeg']:
+        async def avatar_from_link(location, file=False):
+            name = location if not file else location.filename
+            url = location if not file else location.url
+            if name.lower()[-3:] in ['png', 'jpg', 'gif'] or name.lower()[-4:] in ['jpeg']:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as response:
                         assert response.status == 200
@@ -46,7 +33,20 @@ class OwnerCog(commands.Cog):
                 em = discord.Embed(title="Successfully changed avatar to:",
                                    colour=discord.Colour.dark_green())
                 em.set_image(url=url)
-        await ctx.send(embed=em)
+            else:
+                em = discord.Embed(title="Error",
+                                   description="Invalid file format",
+                                   colour=discord.Colour.red())
+            await ctx.send(embed=em)
+        if not url and not ctx.message.attachments:
+            await self.bot.user.edit(avatar=None)
+            em = discord.Embed(title="Successfully reset avatar.",
+                               colour=discord.Colour.dark_green())
+            await ctx.send(embed=em)
+        elif ctx.message.attachments:
+            await avatar_from_link(ctx.message.attachments[0], file=True)
+        elif url:
+            await avatar_from_link(url)
 
     @commands.command(name="setname", aliases=["changename", "setusername", "changeusername"])
     @customchecks.is_owner()
