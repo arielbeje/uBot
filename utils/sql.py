@@ -24,7 +24,7 @@ async def execute(query, args=None):
         if args:
             await db.execute(query, args)
         else:
-            await db.execute(query, args)
+            await db.execute(query)
         await db.commit()
 
 
@@ -45,7 +45,7 @@ async def executemany_queries(*queries):
     async with aiosqlite.connect(DB_FILE) as db:
         for query in queries:
             if type(query) == tuple:
-                await db.execute(query[0], *query[1:])
+                await db.execute(query[0], query[1])
             elif type(query) == str:
                 await db.execute(query)
             else:
@@ -54,8 +54,8 @@ async def executemany_queries(*queries):
 
 async def initserver(serverid):
     await executemany_queries(
-        ("INSERT INTO servers (serverid, comment) VALUES (?, ?)", str(serverid), defaults["comment"]),
-        ("INSERT INTO prefixes VALUES (?, ?)", str(serverid), defaults["prefix"])
+        ("INSERT INTO servers (serverid, comment) VALUES (?, ?)", (str(serverid), defaults["comment"])),
+        ("INSERT INTO prefixes VALUES (?, ?)", (str(serverid), defaults["prefix"]))
     )
 
 
@@ -64,5 +64,4 @@ async def deleteserver(serverid):
                "DELETE FROM prefixes WHERE serverid=?",
                "DELETE FROM faq WHERE serverid=?",
                "DELETE FROM modroles WHERE serverid=?"]
-    queries = [(query, str(serverid)) for query in queries]
-    await executemany_queries(queries)
+    await executemany_queries(*[(query, (str(serverid),)) for query in queries])
