@@ -143,6 +143,8 @@ async def process_wiki(ctx, searchterm, stable=False):
         em = discord.Embed(title="Error",
                            description="To use this command, you have to enter a term to search for.",
                            colour=discord.Colour.red())
+        await ctx.send(embed=em)
+        return
     baseURL = "wiki.factorio.com" if not stable else "stable.wiki.factorio.com"
     em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in {baseURL}...",
                        description="This shouldn't take long.",
