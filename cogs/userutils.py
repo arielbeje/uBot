@@ -46,7 +46,7 @@ class UserUtils(commands.Cog):
         activityInfo = activity_info(member.activity) if member.activity else None
         inlineFields = [
             {"name": "ID", "value": member.id},
-            {"name": "Nickname", "value": member.nick if not None else "None"},
+            {"name": "Nickname", "value": str(member.nick)},
             {"name": "Status", "value": member.status},
             {"name": activityInfo[0], "value": activityInfo[1]} if activityInfo is not None else
             {"name": "Activity", "value": "None"},
