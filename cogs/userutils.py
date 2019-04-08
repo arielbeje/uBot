@@ -18,6 +18,18 @@ def clean_xml(inputdata):
     return tagregex.sub("", html.unescape(ampregex.sub(amp_repl, inputdata)))
 
 
+def activity_info(activity):
+    if activity.type == discord.ActivityType.listening:
+        return ("Listening to", activity.title)
+    elif activity.type == discord.ActivityType.playing:
+        return ("Playing", activity.name)
+    elif activity.type == discord.ActivityType.streaming:
+        return ("Streaming", activity.name)
+    elif activity.type == discord.ActivityType.watching:
+        return ("Watching", activity.name)
+    return (activity.state, activity.name)
+
+
 class UserUtils(commands.Cog):
     def __init__(self, bot):
         super().__init__()
@@ -31,12 +43,12 @@ class UserUtils(commands.Cog):
             user = ctx.message.author
         member = ctx.message.guild.get_member(user.id)
         em = discord.Embed(colour=discord.Colour.gold())
-        activity = member.activity
+        activityInfo = activity_info(member.activity) if member.activity else None
         inlineFields = [
             {"name": "ID", "value": member.id},
             {"name": "Nickname", "value": member.nick if not None else "None"},
             {"name": "Status", "value": member.status},
-            {"name": activity.state if type(activity) is not discord.Spotify else activity.title, "value": activity.name} if activity else
+            {"name": activityInfo[0], "value": activityInfo[1]} if activityInfo is not None else
             {"name": "Activity", "value": "None"},
             {"name": "Mention", "value": member.mention}
         ]
