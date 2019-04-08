@@ -31,11 +31,12 @@ class UserUtils(commands.Cog):
             user = ctx.message.author
         member = ctx.message.guild.get_member(user.id)
         em = discord.Embed(colour=discord.Colour.gold())
+        activity = member.activity
         inlineFields = [
             {"name": "ID", "value": member.id},
             {"name": "Nickname", "value": member.nick if not None else "None"},
             {"name": "Status", "value": member.status},
-            {"name": member.activity.state, "value": member.activity.name} if member.activity else
+            {"name": activity.state if type(activity) is not discord.Spotify else activity.title, "value": activity.name} if activity else
             {"name": "Activity", "value": "None"},
             {"name": "Mention", "value": member.mention}
         ]
