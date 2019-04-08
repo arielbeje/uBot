@@ -78,16 +78,11 @@ description = "A python wrapper for the Discord API"
 name = "discord.py"
 optional = false
 python-versions = ">=3.5.3"
-version = "1.0.0a1696+g48b60b2"
+version = "1.0.0"
 
 [package.dependencies]
 aiohttp = ">=3.3.0,<3.6.0"
 websockets = ">=6.0,<7.0"
-
-[package.source]
-reference = "48b60b2eac89ad5d8510b04f509390da35996492"
-type = "git"
-url = "https://github.com/Rapptz/discord.py.git"
 
 [[package]]
 category = "dev"
@@ -231,7 +226,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "c0ada0dc24d4d282663368ed3b28ddfdc71a2fdaeb73fc2c6fc8705fcdbee812"
+content-hash = "d4690fd103e4007785f0055499a79d807c789da0674607d2a78c08b9fde5eaa3"
 python-versions = "^3.7"
 
 [metadata.hashes]
@@ -243,7 +238,7 @@ asyncpg = ["0677714b26b48d63db728867b812ef365ec3879d2be6fa1c9cf4328503f9a464", "
 attrs = ["10cbf6e27dbce8c30807caf056c8eb50917e0eaafe86347671b57254006c3e69", "ca4be454458f9dec299268d472aaa5a11f67a4ff70093396e1ceae9c76cf4bbb"]
 beautifulsoup4 = ["034740f6cb549b4e932ae1ab975581e6103ac8f942200a0e9759065984391858", "945065979fb8529dd2f37dbb58f00b661bdbcbebf954f93b32fdf5263ef35348", "ba6d5c59906a85ac23dadfe5c88deaf3e179ef565f4898671253e50a78680718"]
 chardet = ["84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae", "fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691"]
-"discord.py" = []
+"discord.py" = ["4c021705769ef8c9088a4b0d7264c5b26bf4c00c89bf8d2a613091daeab98dfb", "cea164674782c2c983d54002dbef26b89d0b132d49c451ea517972778b65e704"]
 entrypoints = ["589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19", "c70dd71abe5a8c85e55e12c19bd91ccfeec11a6e99044204511f9ed547d48451"]
 feedparser = ["bd030652c2d08532c034c27fcd7c85868e7fa3cb2b17f230a44a6bbc92519bf9", "cd2485472e41471632ed3029d44033ee420ad0b57111db95c240c9160a85831c", "ce875495c90ebd74b179855449040003a1beb40cd13d5f037a0654251e260b02"]
 flake8 = ["859996073f341f2670741b51ec1e67a01da142831aa1fdc6242dbf88dffbe661", "a796a115208f5c03b18f332f7c11729812c8c3ded6c46319c59b53efd3819da8"]
