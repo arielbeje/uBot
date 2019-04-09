@@ -1,6 +1,7 @@
 import aiohttp
 import bs4
 import feedparser
+import html
 import re
 import tomd
 
@@ -67,7 +68,7 @@ def get_wiki_description(soup):
         pNum = 0
         if headerEx.search(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[0])):
             pNum = 1
-        return tomd.convert(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[pNum])).strip().replace("<br/>", "\n")
+        return html.unescape(tomd.convert(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[pNum]))).strip().replace("<br/>", "\n")
     return ""
 
 
