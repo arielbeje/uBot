@@ -88,8 +88,21 @@ async def on_command_error(ctx, error):
 
 @bot.event
 async def on_ready():
+    # In case the bot was off when leaving/joining a guild
+    logger.info("Verifying guilds match DB")
+    guilds = bot.guilds
+    guildIds = [guild.id for guild in guilds]
+    missingGuildIds = [guild.id for guild in guilds if sql.fetch("SELECT EXISTS(SELECT 1 FROM servers WHERE serverid=?)", str(guild.id))[0] == 0]
+    for guildId in missingGuildIds:
+        logger.debug(f"Added guild with id {guildId} to DB")
+        await sql.initserver(guildId)
+    undeletedGuildIds = [guild[0] for guild in sql.fetch("SELECT serverid FROM servers") if guild.id not in guildIds]
+    for guildId in undeletedGuildIds:
+        logger.debug(f"Removed guild with id {guildId} from DB")
+        await sql.deleteserver(guildId)
+
     logger.info(f"Logged in as: {bot.user.name} - {bot.user.id}")
-    logger.info(f"Serving {len(bot.users)} users in {len(bot.guilds)} server{('s' if len(bot.guilds) > 1 else '')}")
+    logger.info(f"Serving {len(bot.users)} users in {len(guilds)} server{('s' if len(guilds) > 1 else '')}")
 
 
 @bot.event
