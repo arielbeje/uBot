@@ -46,8 +46,10 @@ async def executemany_queries(*queries):
         for query in queries:
             if type(query) == tuple:
                 await db.execute(query[0], query[1:])
+                await db.commit()
             elif type(query) == str:
                 await db.execute(query)
+                await db.commit()
             else:
                 raise InvalidQueryError()
 
