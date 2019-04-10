@@ -35,12 +35,6 @@ async def fetch(query, *args):
     return rows
 
 
-async def executemany(query, *args):
-    # TODO: Add conversions
-    async with aiosqlite.connect(DB_FILE) as db:
-        await db.executemany(query, *args)
-
-
 async def executemany_queries(*queries):
     async with aiosqlite.connect(DB_FILE) as db:
         for query in queries:
