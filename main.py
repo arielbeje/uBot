@@ -92,11 +92,11 @@ async def on_ready():
     logger.info("Verifying guilds match DB")
     guilds = bot.guilds
     guildIds = [guild.id for guild in guilds]
-    missingGuildIds = [guild.id for guild in guilds if sql.fetch("SELECT EXISTS(SELECT 1 FROM servers WHERE serverid=?)", str(guild.id))[0] == 0]
+    missingGuildIds = [guildId for guildId in guildIds if len(await sql.fetch("SELECT 1 FROM servers WHERE serverid=?", str(guildId))) == 0]
     for guildId in missingGuildIds:
         logger.debug(f"Added guild with id {guildId} to DB")
         await sql.initserver(guildId)
-    undeletedGuildIds = [guild[0] for guild in sql.fetch("SELECT serverid FROM servers") if guild.id not in guildIds]
+    undeletedGuildIds = [guildId[0] for guildId in await sql.fetch("SELECT serverid FROM servers") if int(guildId[0]) not in guildIds]
     for guildId in undeletedGuildIds:
         logger.debug(f"Removed guild with id {guildId} from DB")
         await sql.deleteserver(guildId)
