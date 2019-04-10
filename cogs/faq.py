@@ -162,11 +162,11 @@ class FAQCog(commands.Cog):
         if updatebool:
             if not existed:
                 await sql.execute("INSERT INTO faq VALUES(?, ?, ?, ?, ?, ?, ?)",
-                                  (str(ctx.message.guild.id), title, content, image, creator, timestamp, None))
+                                  str(ctx.message.guild.id), title, content, image, creator, timestamp, None)
                 embedTitle = f"Successfully added \"{title.title()}\" to database"
             else:
                 await sql.execute("UPDATE faq SET content=?, image=?, timestamp=? WHERE serverid=? AND title=?",
-                                  (content, image, timestamp, str(ctx.message.guild.id), title))
+                                  content, image, timestamp, str(ctx.message.guild.id), title)
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
             await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, discord.Colour.dark_green()))
 
@@ -183,7 +183,7 @@ class FAQCog(commands.Cog):
                                  query=title,
                                  title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
                                  color=discord.Colour.red())
-            await sql.execute("DELETE FROM faq WHERE serverid=? AND title=?", (str(ctx.message.guild.id), title))
+            await sql.execute("DELETE FROM faq WHERE serverid=? AND title=?", str(ctx.message.guild.id), title)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
@@ -204,7 +204,7 @@ class FAQCog(commands.Cog):
                                      bot=self.bot,
                                      query=title,
                                      title=f"Successfully edited \"{title.title()}\" to be a link for \"{link.title()}\"")
-            await sql.execute("INSERT INTO faq (serverid, title, link) VALUES (?, ?, ?)", (str(ctx.message.guild.id), title, link))
+            await sql.execute("INSERT INTO faq (serverid, title, link) VALUES (?, ?, ?)", str(ctx.message.guild.id), title, link)
             em = discord.Embed(title=f"Successfully added tag \"{title}\" linking to \"{link}\"",
                                colour=discord.Colour.dark_green())
         else:
