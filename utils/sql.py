@@ -21,10 +21,7 @@ with open("data/defaults.json") as f:
 
 async def execute(query, *args):
     async with aiosqlite.connect(DB_FILE) as db:
-        if args:
-            await db.execute(query, args)
-        else:
-            await db.execute(query)
+        await db.execute(query, args)
         await db.commit()
 
 
