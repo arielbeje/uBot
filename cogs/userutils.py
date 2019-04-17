@@ -49,7 +49,7 @@ class UserUtils(commands.Cog):
         avatar = user.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
         registeredAt = pytz.utc.localize(member.created_at)
         joinedAt = pytz.utc.localize(member.joined_at)
-        em.add_field(name="Joined", value=f"{human(joinedAt, precision=4)} ({joinedAt.isoformat().replace(microsecond=0)})")
+        em.add_field(name="Joined", value=f"{human(joinedAt, precision=4)} ({joinedAt.replace(microsecond=0).isoformat()})")
         em.add_field(name="Roles", value=", ".join([role.name for role in member.roles]).replace("@everyone", "@\u200beveryone"))
         em.set_author(name=member.name, icon_url=avatar)
         em.set_thumbnail(url=avatar)
