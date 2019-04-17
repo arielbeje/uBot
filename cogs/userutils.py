@@ -1,23 +1,10 @@
 from ago import human
-import re
 import pytz
-import html
 
 import discord
 from discord.ext import commands
 
 from typing import Tuple, Union
-
-tagregex = re.compile(r"<.*?>")
-ampregex = re.compile(r"&amp;#(\d*);")
-
-
-def amp_repl(matchobj):
-    return chr(int(matchobj.group(1)))
-
-
-def clean_xml(inputdata):
-    return tagregex.sub("", html.unescape(ampregex.sub(amp_repl, inputdata)))
 
 
 def activity_info(activity: Union[discord.Spotify, discord.Game, discord.Streaming, discord.Activity]) -> Tuple[str, str]:
