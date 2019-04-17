@@ -11,7 +11,7 @@ class AdminCommands(commands.Cog):
         type(self).__name__ = "Admin Commands"
 
     @commands.group(aliases=["modrole"], invoke_without_command=True)
-    async def modroles(self, ctx):
+    async def modroles(self, ctx: commands.Context):
         """
         Lists the moderator roles defined for this server.
         """
@@ -29,7 +29,7 @@ class AdminCommands(commands.Cog):
 
     @modroles.command(name="add")
     @customchecks.has_permissions(administrator=True)
-    async def add_mod_role(self, ctx, *, role: discord.Role):
+    async def add_mod_role(self, ctx: commands.Context, *, role: discord.Role):
         """
         Add a new moderator role to the defined ones.
         """
@@ -46,7 +46,7 @@ class AdminCommands(commands.Cog):
         await ctx.send(embed=em)
 
     @add_mod_role.error
-    async def add_mod_role_error_handler(self, ctx, error):
+    async def add_mod_role_error_handler(self, ctx: commands.Context, error: Exception):
         origerror = getattr(error, "original", error)
         if isinstance(origerror, commands.errors.BadArgument):  # Bad role.
             em = discord.Embed(title="Error",
@@ -56,7 +56,7 @@ class AdminCommands(commands.Cog):
 
     @modroles.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
-    async def remove_mod_role(self, ctx, *, role: discord.Role):
+    async def remove_mod_role(self, ctx: commands.Context, *, role: discord.Role):
         """
         Remove a moderator role from the defined list.
         """
@@ -73,7 +73,7 @@ class AdminCommands(commands.Cog):
         await ctx.send(embed=em)
 
     @commands.group(invoke_without_command=True)
-    async def prefixes(self, ctx):
+    async def prefixes(self, ctx: commands.Context):
         """
         List the available prefixes for this server.
         """
@@ -91,7 +91,7 @@ class AdminCommands(commands.Cog):
 
     @prefixes.command(name="add")
     @customchecks.is_mod()
-    async def add_prefix(self, ctx, *, prefix: str):
+    async def add_prefix(self, ctx: commands.Context, *, prefix: str):
         """
         Adds a prefix to the list of defined ones.
         """
@@ -110,7 +110,7 @@ class AdminCommands(commands.Cog):
 
     @prefixes.command(name="remove")
     @customchecks.is_mod()
-    async def remove_prefix(self, ctx, *, prefix: str):
+    async def remove_prefix(self, ctx: commands.Context, *, prefix: str):
         """
         Removes a prefix from the defined list.
         """
@@ -129,7 +129,7 @@ class AdminCommands(commands.Cog):
 
     @commands.command()
     @customchecks.is_mod()
-    async def reset(self, ctx):
+    async def reset(self, ctx: commands.Context):
         """
         Resets the bot's settings for this server.
         Careful! This doesn't have a confirmation message yet!
@@ -143,7 +143,7 @@ class AdminCommands(commands.Cog):
 
     @commands.group(aliases=["purge"], invoke_without_command=True)
     @customchecks.has_permissions(manage_messages=True, read_message_history=True)
-    async def prune(self, ctx, pruneNum: int):
+    async def prune(self, ctx: commands.Context, pruneNum: int):
         """
         Prunes a certain amount of messages. Can also use message ID.
         Maximum amount of messages to prune is 300, unless a message ID is specified.
@@ -156,7 +156,7 @@ class AdminCommands(commands.Cog):
             await ctx.channel.purge(after=message)
 
     @prune.error
-    async def prune_error_handler(self, ctx, error):
+    async def prune_error_handler(self, ctx: commands.Context, error: Exception):
         origerror = getattr(error, "original", error)
         if isinstance(origerror, discord.errors.NotFound):  # Invalid prune number.
             em = discord.Embed(title="Error",
@@ -171,7 +171,7 @@ class AdminCommands(commands.Cog):
 
     @prune.command(name="user")
     @customchecks.has_permissions(manage_messages=True, read_message_history=True)
-    async def prune_member(self, ctx, wantedMember: discord.Member, pruneNum: int):
+    async def prune_member(self, ctx: commands.Context, wantedMember: discord.Member, pruneNum: int):
         """
         Prunes a certain amount of messages from a certain user. Can also use message ID.
         Note: Will only scan up to 300 messages at a time, unless a message ID is specified.
@@ -196,7 +196,7 @@ class AdminCommands(commands.Cog):
             await ctx.channel.purge(after=message, check=check)
 
     @prune_member.error
-    async def prune_member_error_handler(self, ctx, error):
+    async def prune_member_error_handler(self, ctx: commands.Context, error: Exception):
         origerror = getattr(error, "original", error)
         if isinstance(origerror, discord.errors.NotFound):  # Invalid prune number.
             em = discord.Embed(title="Error",
@@ -211,7 +211,7 @@ class AdminCommands(commands.Cog):
 
     @commands.command(name="setnick")
     @customchecks.is_mod()
-    async def set_nick(self, ctx, *, nick=None):
+    async def set_nick(self, ctx: commands.Context, *, nick: str = None):
         """
         Changes the bot's nickname in this server.
         If no nickname is inputted, the nickname is reset.
@@ -226,7 +226,7 @@ class AdminCommands(commands.Cog):
 
     @commands.command(name="setcomment")
     @customchecks.is_mod()
-    async def set_comment(self, ctx, *, comment=None):
+    async def set_comment(self, ctx: commands.Context, *, comment: str = None):
         """
         Set the comment symbol for this server.
         When executing commands, text after the symbol message will be ignored.
@@ -242,7 +242,7 @@ class AdminCommands(commands.Cog):
 
     @commands.command(name="setjoinleavechannel")
     @customchecks.is_mod()
-    async def set_joinleave_channel(self, ctx, channel: discord.TextChannel = None):
+    async def set_joinleave_channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         """
         Set the channel for join/leave events.
         Use without additional arguments to disable the functionality.

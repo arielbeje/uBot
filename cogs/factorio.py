@@ -8,6 +8,8 @@ import tomd
 import discord
 from discord.ext import commands
 
+from typing import Tuple
+
 headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
 referEx = re.compile(r".*? may refer to\:")
 linkEx = re.compile(r"\((\/\S*)\)")
@@ -17,7 +19,7 @@ fffEx = re.compile(r"Friday Facts #(\d*)")
 markdownEx = re.compile(r"([~*_`])")
 
 
-async def get_soup(url):
+async def get_soup(url: str) -> Tuple[int, bs4.BeautifulSoup]:
     """
     Returns a list with the response code (as int) and a BeautifulSoup object of the URL
     """
@@ -28,7 +30,7 @@ async def get_soup(url):
     return (status, bs4.BeautifulSoup(r, "html.parser"))
 
 
-def mod_embed(result):
+def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     """
     Returns a discord.Embed object derived from a mod page BeautifulSoup
     """
@@ -60,7 +62,7 @@ def mod_embed(result):
     return em
 
 
-def get_wiki_description(soup):
+def get_wiki_description(soup: bs4.BeautifulSoup) -> str:
     """
     Returns the first paragraph of a wiki page BeautifulSoup
     """
@@ -72,7 +74,7 @@ def get_wiki_description(soup):
     return ""
 
 
-async def embed_fff(number):
+async def embed_fff(number: int) -> discord.Embed:
     """
     Returns a discord.Embed object derived from an fff number
     """
@@ -121,7 +123,10 @@ async def embed_fff(number):
     return em
 
 
-async def wiki_embed(url):
+async def wiki_embed(url: str) -> discord.Embed:
+    """
+    Returns a discord.Embed object from a wiki URL
+    """
     soup = (await get_soup(url))[1]
     description = get_wiki_description(soup)
     baseURL = "wiki.factorio.com" if not url.startswith('stable.') else "stable.wiki.factorio.com"
@@ -139,7 +144,10 @@ async def wiki_embed(url):
     return em
 
 
-async def process_wiki(ctx, searchterm, stable=False):
+async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = False):
+    """
+    Sends a message according to parameters given
+    """
     if not searchterm:
         em = discord.Embed(title="Error",
                            description="To use this command, you have to enter a term to search for.",
@@ -189,7 +197,7 @@ class FactorioCog(commands.Cog):
         type(self).__name__ = "Factorio Commands"
 
     @commands.command(aliases=["mod"])
-    async def linkmod(self, ctx, *, modname=None):
+    async def linkmod(self, ctx: commands.Context, *, modname: str = None):
         """
         Search for a mod in [the Factorio mod portal](https://mods.factorio.com).
         """
@@ -241,21 +249,21 @@ class FactorioCog(commands.Cog):
                     await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
     @commands.command()
-    async def wiki(self, ctx, *, searchterm=None):
+    async def wiki(self, ctx: commands.Context, *, searchterm: str = None):
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
         await process_wiki(ctx, searchterm)
 
     @commands.command()
-    async def stablewiki(self, ctx, *, searchterm=None):
+    async def stablewiki(self, ctx: commands.Context, *, searchterm: str = None):
         """
         Searches for a term in the [official Stable Factorio wiki](https://stable.wiki.factorio.com/).
         """
         await process_wiki(ctx, searchterm, stable=True)
 
     @commands.command()
-    async def fff(self, ctx, number=None):
+    async def fff(self, ctx: commands.Context, number: str = None):
         """
         Links an fff with the number provided.
         """

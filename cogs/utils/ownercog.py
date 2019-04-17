@@ -15,7 +15,7 @@ class OwnerCog(commands.Cog):
 
     @commands.command(name="setavatar", aliases=["changeavatar", "setpic"])
     @customchecks.is_owner()
-    async def set_avatar(self, ctx, url: str = ""):
+    async def set_avatar(self, ctx: commands.Context, url: str = ""):
         """
         Changes the bot's avatar.
         Can attach an image or use a URL.
@@ -50,7 +50,7 @@ class OwnerCog(commands.Cog):
 
     @commands.command(name="setname", aliases=["changename", "setusername", "changeusername"])
     @customchecks.is_owner()
-    async def set_name(self, ctx, *, name: str):
+    async def set_name(self, ctx: commands.Context, *, name: str):
         """
         Changes the bot's username.
         """
@@ -68,7 +68,7 @@ class OwnerCog(commands.Cog):
 
     @commands.command(name="eval", aliases=["debug"])
     @customchecks.is_owner()
-    async def eval(self, ctx, *, code: str):
+    async def eval(self, ctx: commands.Context, *, code: str):
         """
         Evaluates code.
         """
@@ -109,7 +109,7 @@ class OwnerCog(commands.Cog):
 
     @commands.command(name="setplaying")
     @customchecks.is_owner()
-    async def set_playing(self, ctx, *, game: str = None):
+    async def set_playing(self, ctx: commands.Context, *, game: str = None):
         """
         Sets "currently playing" status.
         """

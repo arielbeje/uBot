@@ -32,6 +32,9 @@ if "UBOT" not in os.environ:
 
 
 async def initdb():
+    """
+    Initializes the database (makes sure that all tables are present)
+    """
     tables = [table[0] for table in await sql.fetch("SELECT name FROM sqlite_master WHERE type='table'")]
     if any(table not in tables for table in ["servers", "faq", "prefixes", "modroles"]):
         if "servers" not in tables:
@@ -44,7 +47,10 @@ async def initdb():
             await sql.execute("CREATE TABLE modroles (serverid varchar(20), roleid varchar(20))")
 
 
-async def get_prefix(bot, message):
+async def get_prefix(bot: commands.AutoShardedBot, message: discord.Message):
+    """
+    Returns the prefix(es) for the bot
+    """
     prefixes = await sql.fetch("SELECT prefix FROM prefixes WHERE serverid=?", str(message.guild.id))
     prefixes = [prefix[0] for prefix in [prefix[0] for prefix in prefixes]]
     return commands.when_mentioned_or(*prefixes)(bot, message) if prefixes else commands.when_mentioned(bot, message)
@@ -54,7 +60,7 @@ bot = commands.AutoShardedBot(command_prefix=get_prefix)
 
 
 @bot.event
-async def on_command_error(ctx, error):
+async def on_command_error(ctx: commands.Context, error: Exception):
     origerror = getattr(error, "original", error)
     if isinstance(origerror, customchecks.NoPermsError):
         em = discord.Embed(title="Error",
@@ -106,13 +112,13 @@ async def on_ready():
 
 
 @bot.event
-async def on_guild_join(guild):
+async def on_guild_join(guild: discord.Guild):
     logger.info(f"Joined server \'{guild.name}\' - {guild.id}")
     await sql.initserver(guild.id)
 
 
 @bot.event
-async def on_guild_remove(guild):
+async def on_guild_remove(guild: discord.Guild):
     logger.info(f"Left server \'{guild.name}\' - {guild.id}")
     await sql.deleteserver(guild.id)
 
@@ -123,7 +129,7 @@ negativeModEx = re.compile(r"\`[\S\s]*?\>\>(.*?)\<\<[\S\s]*?\`")
 
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     if not isinstance(message.channel, discord.abc.GuildChannel):
         return
     msg = message.content
@@ -144,7 +150,7 @@ async def on_message(message):
 
 
 @bot.event
-async def on_member_join(member):
+async def on_member_join(member: discord.Member):
     joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
     if len(joinLeaveRow) > 0:  # To avoid errors if the bot was the one removed
         joinLeaveID = joinLeaveRow[0][0]
@@ -155,7 +161,7 @@ async def on_member_join(member):
 
 
 @bot.event
-async def on_member_remove(member):
+async def on_member_remove(member: discord.Member):
     joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
     if len(joinLeaveRow) > 0:
         joinLeaveID = joinLeaveRow[0][0]
@@ -166,7 +172,7 @@ async def on_member_remove(member):
 
 
 @bot.event
-async def on_member_ban(guild, member):
+async def on_member_ban(guild: discord.Guild, member: discord.Member):
     joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
     if len(joinLeaveRow) > 0:
         joinLeaveID = joinLeaveRow[0][0]

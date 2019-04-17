@@ -7,8 +7,13 @@ from fuzzywuzzy import fuzz
 
 from utils import customchecks, sql
 
+from typing import List
 
-async def faqdb(ctx, query=None, keys=False):
+
+async def faqdb(ctx: commands.Context, query: str = None, keys: bool = False) -> List[str]:
+    """
+    Searches the database for FAQs according to parameters given
+    """
     if keys:
         return [result[0] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=? ORDER BY title", str(ctx.message.guild.id))]
     if query is None:
@@ -17,7 +22,10 @@ async def faqdb(ctx, query=None, keys=False):
     return faqRow[0]
 
 
-async def embed_faq(ctx, bot, query, title=None, color=None):
+async def embed_faq(ctx: commands.Context, bot: commands.AutoShardedBot, query: str, title: str = None, color: str = None) -> discord.Embed:
+    """
+    Returns a discord.Embed derived from the parameters given
+    """
     queryRow = await faqdb(ctx, query)
     if queryRow[6] is not None:  # link
         queryRow = await faqdb(ctx, str(queryRow[6]))
@@ -42,7 +50,10 @@ async def embed_faq(ctx, bot, query, title=None, color=None):
     return em
 
 
-async def check_image(ctx, bot, title, name, link=""):
+async def check_image(ctx: commands.Context, bot: commands.AutoShardedBot, title: str, name: str, link: str = "") -> bool:
+    """
+    Checks wether a file is a supported image file
+    """
     if not link:
         link = name
     if (name[-3:] in ["png", "jpg", "gif"] or
@@ -64,7 +75,7 @@ class FAQCog(commands.Cog):
         type(self).__name__ = "Frequently Asked Questions"
 
     @commands.group(name="faq", aliases=["tag", "tags", "faw"], invoke_without_command=True)
-    async def faq_command(self, ctx, *, query: str = ""):
+    async def faq_command(self, ctx: commands.Context, *, query: str = ""):
         """
         Shows the list of available FAQ tags.
         """
@@ -108,7 +119,7 @@ class FAQCog(commands.Cog):
 
     @faq_command.command(name="add", aliases=["edit", "new"])
     @customchecks.is_mod()
-    async def faq_add(self, ctx, title: str, *, content: str = ""):
+    async def faq_add(self, ctx: commands.Context, title: str, *, content: str = ""):
         """
         Add a new tag to the FAQ tags.
         Can add an image by either attaching it to the message, or using ~~ imageurl at the end.
@@ -172,7 +183,7 @@ class FAQCog(commands.Cog):
 
     @faq_command.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
-    async def faq_remove(self, ctx, *, title: str):
+    async def faq_remove(self, ctx: commands.Context, *, title: str):
         """
         Remove a tag from the FAQ tags.
         """
@@ -193,7 +204,7 @@ class FAQCog(commands.Cog):
 
     @faq_command.command(name="link")
     @customchecks.is_mod()
-    async def faq_link(self, ctx, title: str, *, link: str):
+    async def faq_link(self, ctx: commands.Context, title: str, *, link: str):
         """
         Makes a shortcut tag in the list of FAQ tags.
         """

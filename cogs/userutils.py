@@ -6,6 +6,8 @@ import html
 import discord
 from discord.ext import commands
 
+from typing import Tuple, Union
+
 tagregex = re.compile(r"<.*?>")
 ampregex = re.compile(r"&amp;#(\d*);")
 
@@ -18,7 +20,10 @@ def clean_xml(inputdata):
     return tagregex.sub("", html.unescape(ampregex.sub(amp_repl, inputdata)))
 
 
-def activity_info(activity):
+def activity_info(activity: Union[discord.Spotify, discord.Game, discord.Streaming, discord.Activity]) -> Tuple[str, str]:
+    """
+    Returns the proper title and name for the activity given
+    """
     if activity.type == discord.ActivityType.listening:
         return ("Listening to", activity.title)
     elif activity.type == discord.ActivityType.playing:
@@ -37,7 +42,7 @@ class UserUtils(commands.Cog):
         type(self).__name__ = "Utility Commands"
 
     @commands.command(name="userinfo")
-    async def user_info(self, ctx, user: discord.User = None):
+    async def user_info(self, ctx: commands.Context, user: discord.User = None):
         """Returns information about the given user"""
         if not user:
             user = ctx.message.author
@@ -65,7 +70,7 @@ class UserUtils(commands.Cog):
         await ctx.send(embed=em)
 
     @commands.command()
-    async def info(self, ctx):
+    async def info(self, ctx: commands.Context):
         """Shows info about the bot"""
         em = discord.Embed(title="uBot",
                            colour=discord.Colour.gold())

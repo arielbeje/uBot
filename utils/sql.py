@@ -1,6 +1,7 @@
 import aiosqlite
 import json
 import logging
+from typing import List, Tuple, Union
 
 DB_FILE = "db.db"
 
@@ -19,20 +20,29 @@ with open("data/defaults.json") as f:
     defaults = json.load(f)
 
 
-async def execute(query, *args):
+async def execute(query: str, *args: str):
+    """
+    Executes the given query + args in the database
+    """
     async with aiosqlite.connect(DB_FILE) as db:
         await db.execute(query, args)
         await db.commit()
 
 
-async def fetch(query, *args):
+async def fetch(query: str, *args: str) -> Union[List[Tuple[str]], None]:
+    """
+    Returns the result from the given query + args in the database
+    """
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(query, args)
         rows = await cursor.fetchall()
     return rows
 
 
-async def executemany_queries(*queries):
+async def executemany_queries(*queries: str):
+    """
+    Executes many queries utilizing only one session
+    """
     async with aiosqlite.connect(DB_FILE) as db:
         for query in queries:
             if type(query) == tuple:
@@ -45,14 +55,20 @@ async def executemany_queries(*queries):
                 raise InvalidQueryError()
 
 
-async def initserver(serverid):
+async def initserver(serverid: Union[int, str]):
+    """
+    Initializes the values in the database for the given server ID
+    """
     await executemany_queries(
         ("INSERT INTO servers (serverid, comment) VALUES (?, ?)", str(serverid), defaults["comment"]),
         ("INSERT INTO prefixes VALUES (?, ?)", str(serverid), defaults["prefix"])
     )
 
 
-async def deleteserver(serverid):
+async def deleteserver(serverid: Union[int, str]):
+    """
+    Removes all lines refrencing the given server ID from the database
+    """
     queries = ["DELETE FROM servers WHERE serverid=?",
                "DELETE FROM prefixes WHERE serverid=?",
                "DELETE FROM faq WHERE serverid=?",
