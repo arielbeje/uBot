@@ -63,6 +63,7 @@ class UserUtils(commands.Cog):
                            colour=discord.Colour.gold())
         em.add_field(name="Creator", value="arielbeje - <@114814850621898755>")
         em.add_field(name="Source", value="[GitHub](https://github.com/arielbeje/uBot)")
+        em.add_field(name="Invite link", value="[Link](https://discordapp.com/oauth2/authorize?&client_id=334003132583510016&scope=bot&permissions=0)")
         await ctx.send(embed=em)
 
 
