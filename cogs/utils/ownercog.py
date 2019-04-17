@@ -113,11 +113,12 @@ class OwnerCog(commands.Cog):
         """
         Sets "currently playing" status.
         """
-        await self.bot.change_presence(activity=discord.Game(name=game))
         em = discord.Embed(colour=discord.Colour.dark_green())
-        if game:
+        if game is not None:
+            await self.bot.change_presence(activity=discord.Game(name=game))
             em.title = f"Successfully set playing as {game}."
         else:
+            await self.bot.change_presence(activity=None)
             em.title = "Successfully reset \"playing\"."
         await ctx.send(embed=em)
 
