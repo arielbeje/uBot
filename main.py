@@ -38,13 +38,15 @@ async def initdb():
     tables = [table[0] for table in await sql.fetch("SELECT name FROM sqlite_master WHERE type='table'")]
     if any(table not in tables for table in ["servers", "faq", "prefixes", "modroles"]):
         if "servers" not in tables:
-            await sql.execute("CREATE TABLE servers (serverid varchar(18) PRIMARY KEY, joinleavechannel varchar(18), comment text)")
+            await sql.execute("CREATE TABLE servers (serverid varchar(18) PRIMARY KEY, joinleavechannel varchar(18), comment text, muteroleid varchar(18))")
         if "faq" not in tables:
             await sql.execute("CREATE TABLE faq (serverid varchar(18), title text, content text, image text, creator varchar(18), timestamp timestamptz, link text)")
         if "prefixes" not in tables:
             await sql.execute("CREATE TABLE prefixes (serverid varchar(18), prefix text)")
         if "modroles" not in tables:
             await sql.execute("CREATE TABLE modroles (serverid varchar(18), roleid varchar(18))")
+        if "mutes" not in tables:
+            await sql.execute("CREATE TABLE mutes (serverid varchar(18), userid varchar(18), until timestamptz)")
 
 
 async def get_prefix(bot: commands.AutoShardedBot, message: discord.Message):
