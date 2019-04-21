@@ -257,6 +257,15 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
+    @commands.command(name="setmuterole")
+    @customchecks.is_mod()
+    async def set_mute_role(self, ctx: commands.Context, *, role: discord.Role):
+        await sql.execute("UPDATE servers SET muteroleid=? WHERE serverid=?", str(role.id), str(ctx.message.guild.id))
+        em = discord.Embed(title="Succesfully changed mute role",
+                           description=f"New role is `{role.name}`",
+                           colour=discord.Colour.dark_green())
+        await ctx.send(embed=em)
+
 
 def setup(bot):
     bot.add_cog(AdminCommands(bot))
