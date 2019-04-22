@@ -11,6 +11,10 @@ from utils import customchecks, sql
 
 
 async def ensure_unmute(server: discord.Guild, member: discord.Member, duration: int, role: discord.Role):
+    """
+    Sleeps for the given duration, then unmutes the member.
+    Also removes the mute row from the db.
+    """
     await asyncio.sleep(duration)
     await member.remove_roles(role, reason=f"Temporary mute of {humanfriendly.format_timespan(duration)} ended.")
     await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?",
@@ -283,6 +287,10 @@ class AdminCommands(commands.Cog):
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
     async def mute(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
+        """
+        Temporarily mutes a member for the given duration. A reason can also be given.
+        The reason will be saved in the audit log.
+        """
         delta = timeparse(time)
         until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
