@@ -49,6 +49,8 @@ async def initdb():
             await sql.execute("CREATE TABLE modroles (serverid varchar(18), roleid varchar(18))")
         if "mutes" not in tables:
             await sql.execute("CREATE TABLE mutes (serverid varchar(18), userid varchar(18), until timestamptz)")
+        if "bans" not in tables:
+            await sql.execute("CREATE TABLE bans (serverid varchar(18), userid varchar(18), until timestamptz)")
 
 
 async def get_prefix(bot: commands.AutoShardedBot, message: discord.Message):
