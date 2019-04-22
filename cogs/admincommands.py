@@ -329,6 +329,20 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
 
+    @commands.command()
+    @customchecks.is_mod()
+    @commands.has_permissions(ban_members=True)
+    @discord.ext.commands.bot_has_permissions(ban_members=True)
+    async def ban(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
+        """
+        Bans the user. A reason can also be given.
+        Does not delete any messages from the user.
+        """
+        await member.ban(reason=reason, delete_message_days=0)
+        em = discord.Embed(title=f"Successfully banned {member.display_name}",
+                           colour=discord.Colour.dark_green())
+        await ctx.send(embed=em)
+
 
 def setup(bot):
     bot.add_cog(AdminCommands(bot))
