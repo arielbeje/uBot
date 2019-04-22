@@ -343,6 +343,36 @@ class AdminCommands(commands.Cog):
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
+    @commands.command()
+    @customchecks.is_mod()
+    @commands.has_permissions(ban_members=True)
+    @discord.ext.commands.bot_has_permissions(ban_members=True)
+    async def tempban(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
+        """
+        Temporarily bans a member for the given duration. A reason can also be given.
+        The reason will be saved in the audit log.
+        No messages from the user are deleted
+        """
+        delta = timeparse(time)
+        until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
+        prevban = await sql.fetch("SELECT until FROM bans WHERE serverid=? AND userid=?",
+                                  str(ctx.message.guild.id), str(member.id))
+        if len(prevban) == 0:
+            await member.ban(reason=reason, delete_message_days=0)
+            await sql.execute("INSERT INTO bans VALUES (?, ?, ?)",
+                              str(ctx.message.guild.id), str(member.id), until)
+            em = discord.Embed(title=f"Succesfully banned {member.display_name}",
+                               description=f"Will be banned until {until.isoformat()}.",
+                               colour=discord.Colour.dark_green())
+            await ctx.send(embed=em)
+            asyncio.ensure_future(punishmentshelper.ensure_unban(ctx.message.guild, member, delta))
+        else:
+            until = datetime.datetime.strptime(prevban[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+            em = discord.Embed(title="Error",
+                               description=f"User is already banned until {until.isoformat()}.",
+                               colour=discord.Colour.red())
+            await ctx.send(embed=em)
+
 
 def setup(bot):
     bot.add_cog(AdminCommands(bot))
