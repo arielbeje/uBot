@@ -274,7 +274,25 @@ class AdminCommands(commands.Cog):
     @commands.command()
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
-    async def mute(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
+    async def mute(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
+        roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
+                                  str(ctx.message.guild.id))
+        role = ctx.message.guild.get_role(int(roleRow[0][0]))
+        if role is not None:
+            await member.add_roles(role, reason=reason)
+            em = discord.Embed(title=f"Succesfully muted {member.display_name}",
+                               colour=discord.Colour.dark_green())
+        else:
+            em = discord.Embed(title="Error",
+                               description="The set mute role for this server does not exist" +
+                                           f"You can set another role using `{ctx.prefix}setmuterole`.",
+                               colour=discord.Colour.red())
+        await ctx.send(embed=em)
+
+    @commands.command()
+    @customchecks.is_mod()
+    @commands.has_permissions(manage_roles=True)
+    async def tempmute(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
         """
         Temporarily mutes a member for the given duration. A reason can also be given.
         The reason will be saved in the audit log.
