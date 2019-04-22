@@ -1,7 +1,20 @@
+import asyncio
+import datetime
+import humanfriendly
+import pytz
+from pytimeparse.timeparse import timeparse
+
 import discord
 from discord.ext import commands
 
 from utils import customchecks, sql
+
+
+async def ensure_unmute(server: discord.Guild, member: discord.Member, duration: int, role: discord.Role):
+    await asyncio.sleep(duration)
+    await member.remove_roles(role, reason=f"Temporary mute of {humanfriendly.format_timespan(duration)} ended.")
+    await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?",
+                      str(server.id), str(member.id))
 
 
 class AdminCommands(commands.Cog):
@@ -265,6 +278,40 @@ class AdminCommands(commands.Cog):
                            description=f"New role is `{role.name}`",
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
+
+    @commands.command()
+    @customchecks.is_mod()
+    @commands.has_permissions(manage_roles=True)
+    async def mute(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
+        delta = timeparse(time)
+        until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
+        prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
+                                   str(ctx.message.guild.id), str(member.id))
+        if len(prevmute) == 0:
+            await sql.execute("INSERT INTO mutes VALUES (?, ?, ?)",
+                              str(ctx.message.guild.id), str(member.id), until)
+            roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
+                                      str(ctx.message.guild.id))
+            role = ctx.message.guild.get_role(int(roleRow[0][0]))
+            if role is not None:
+                await member.add_roles(role, reason=reason)
+                em = discord.Embed(title=f"Succesfully muted {member.display_name}",
+                                   description=f"Will be muted until {until.isoformat()}.",
+                                   colour=discord.Colour.dark_green())
+                await ctx.send(embed=em)
+                asyncio.ensure_future(ensure_unmute(ctx.message.guild, member, delta, role))
+            else:
+                em = discord.Embed(title="Error",
+                                   description="The set mute role for this server does not exist" +
+                                               f"You can set another role using `{ctx.prefix}setmuterole`.",
+                                   colour=discord.Colour.red())
+                await ctx.send(embed=em)
+        else:
+            until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+            em = discord.Embed(title="Error",
+                               description=f"User is already muted until {until.isoformat()}.",
+                               colour=discord.Colour.red())
+            await ctx.send(embed=em)
 
 
 def setup(bot):

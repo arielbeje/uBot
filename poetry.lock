@@ -124,6 +124,17 @@ version = "0.17.0"
 
 [[package]]
 category = "main"
+description = "Human friendly output for text interfaces using Python"
+name = "humanfriendly"
+optional = false
+python-versions = "*"
+version = "4.18"
+
+[package.dependencies]
+pyreadline = "*"
+
+[[package]]
+category = "main"
 description = "Internationalized Domain Names in Applications (IDNA)"
 name = "idna"
 optional = false
@@ -164,6 +175,15 @@ version = "2.1.0"
 
 [[package]]
 category = "main"
+description = "A python implmementation of GNU readline."
+marker = "sys_platform == \"win32\""
+name = "pyreadline"
+optional = false
+python-versions = "*"
+version = "2.1"
+
+[[package]]
+category = "main"
 description = "Python extension for computing string edit distances and similarities."
 name = "python-levenshtein"
 optional = false
@@ -172,6 +192,14 @@ version = "0.12.0"
 
 [package.dependencies]
 setuptools = "*"
+
+[[package]]
+category = "main"
+description = "Time expression parser"
+name = "pytimeparse"
+optional = false
+python-versions = "*"
+version = "1.1.8"
 
 [[package]]
 category = "main"
@@ -226,7 +254,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "d4690fd103e4007785f0055499a79d807c789da0674607d2a78c08b9fde5eaa3"
+content-hash = "8766a660bf078469936d4951fe24240afe675497a356b88fbd90a80ca80a8cd7"
 python-versions = "^3.7"
 
 [metadata.hashes]
@@ -243,12 +271,15 @@ entrypoints = ["589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19
 feedparser = ["bd030652c2d08532c034c27fcd7c85868e7fa3cb2b17f230a44a6bbc92519bf9", "cd2485472e41471632ed3029d44033ee420ad0b57111db95c240c9160a85831c", "ce875495c90ebd74b179855449040003a1beb40cd13d5f037a0654251e260b02"]
 flake8 = ["859996073f341f2670741b51ec1e67a01da142831aa1fdc6242dbf88dffbe661", "a796a115208f5c03b18f332f7c11729812c8c3ded6c46319c59b53efd3819da8"]
 fuzzywuzzy = ["5ac7c0b3f4658d2743aa17da53a55598144edbc5bee3c6863840636e6926f254", "6f49de47db00e1c71d40ad16da42284ac357936fa9b66bea1df63fed07122d62"]
+humanfriendly = ["23057b10ad6f782e7bc3a20e3cb6768ab919f619bbdc0dd75691121bbde5591d", "33ee8ceb63f1db61cce8b5c800c531e1a61023ac5488ccde2ba574a85be00a85"]
 idna = ["c357b3f628cf53ae2c4c05627ecc484553142ca23264e593d327bcde5e9c3407", "ea8b7f6188e6fa117537c3df7da9fc686d485087abf6ac197f9c46432f7e4a3c"]
 mccabe = ["ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42", "dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"]
 multidict = ["024b8129695a952ebd93373e45b5d341dbb87c17ce49637b34000093f243dd4f", "041e9442b11409be5e4fc8b6a97e4bcead758ab1e11768d1e69160bdde18acc3", "045b4dd0e5f6121e6f314d81759abd2c257db4634260abcfe0d3f7083c4908ef", "047c0a04e382ef8bd74b0de01407e8d8632d7d1b4db6f2561106af812a68741b", "068167c2d7bbeebd359665ac4fff756be5ffac9cda02375b5c5a7c4777038e73", "148ff60e0fffa2f5fad2eb25aae7bef23d8f3b8bdaf947a65cdbe84a978092bc", "1d1c77013a259971a72ddaa83b9f42c80a93ff12df6a4723be99d858fa30bee3", "1d48bc124a6b7a55006d97917f695effa9725d05abe8ee78fd60d6588b8344cd", "31dfa2fc323097f8ad7acd41aa38d7c614dd1960ac6681745b6da124093dc351", "34f82db7f80c49f38b032c5abb605c458bac997a6c3142e0d6c130be6fb2b941", "3d5dd8e5998fb4ace04789d1d008e2bb532de501218519d70bb672c4c5a2fc5d", "4a6ae52bd3ee41ee0f3acf4c60ceb3f44e0e3bc52ab7da1c2b2aa6703363a3d1", "4b02a3b2a2f01d0490dd39321c74273fed0568568ea0e7ea23e02bd1fb10a10b", "4b843f8e1dd6a3195679d9838eb4670222e8b8d01bc36c9894d6c3538316fa0a", "5de53a28f40ef3c4fd57aeab6b590c2c663de87a5af76136ced519923d3efbb3", "61b2b33ede821b94fa99ce0b09c9ece049c7067a33b279f343adfe35108a4ea7", "6a3a9b0f45fd75dc05d8e93dc21b18fc1670135ec9544d1ad4acbcf6b86781d0", "76ad8e4c69dadbb31bad17c16baee61c0d1a4a73bed2590b741b2e1a46d3edd0", "7ba19b777dc00194d1b473180d4ca89a054dd18de27d0ee2e42a103ec9b7d014", "7c1b7eab7a49aa96f3db1f716f0113a8a2e93c7375dd3d5d21c4941f1405c9c5", "7fc0eee3046041387cbace9314926aa48b681202f8897f8bff3809967a049036", "8ccd1c5fff1aa1427100ce188557fc31f1e0a383ad8ec42c559aabd4ff08802d", "8e08dd76de80539d613654915a2f5196dbccc67448df291e69a88712ea21e24a", "c18498c50c59263841862ea0501da9f2b3659c00db54abfbf823a80787fde8ce", "c49db89d602c24928e68c0d510f4fcf8989d77defd01c973d6cbe27e684833b1", "ce20044d0317649ddbb4e54dab3c1bcc7483c78c27d3f58ab3d0c7e6bc60d26a", "d1071414dd06ca2eafa90c85a079169bfeb0e5f57fd0b45d44c092546fcd6fd9", "d3be11ac43ab1a3e979dac80843b42226d5d3cccd3986f2e03152720a4297cd7", "db603a1c235d110c860d5f39988ebc8218ee028f07a7cbc056ba6424372ca31b"]
 pycodestyle = ["95a2219d12372f05704562a14ec30bc76b05a5b297b21a5dfe3f6fac3491ae56", "e40a936c9a450ad81df37f549d676d127b1b66000a6c500caa2b085bc0ca976c"]
 pyflakes = ["5e8c00e30c464c99e0b501dc160b13a14af7f27d4dffb529c556e30a159e231d", "f277f9ca3e55de669fba45b7393a1449009cff5a37d1af10ebb76c52765269cd"]
+pyreadline = ["4530592fc2e85b25b1a9f79664433da09237c1a270e4d78ea5aa3a2c7229e2d1", "65540c21bfe14405a3a77e4c085ecfce88724743a4ead47c66b84defcf82c32e", "9ce5fa65b8992dfa373bddc5b6e0864ead8f291c94fbfec05fbd5c836162e67b"]
 python-levenshtein = ["033a11de5e3d19ea25c9302d11224e1a1898fe5abd23c61c7c360c25195e3eb1"]
+pytimeparse = ["04b7be6cc8bd9f5647a6325444926c3ac34ee6bc7e69da4367ba282f076036bd", "e86136477be924d7e670646a98561957e8ca7308d44841e21f5ddea757556a0a"]
 pytz = ["32b0891edff07e28efe91284ed9c31e123d84bea3fd98e1f72be2508f43ef8d9", "d5f05e487007e29e03409f9398d074e158d920d36eb82eaf66fb1136b0c5374c"]
 rope = ["a108c445e1cd897fe19272ab7877d172e7faf3d4148c80e7d20faba42ea8f7b2"]
 soupsieve = ["afa56bf14907bb09403e5d15fbed6275caa4174d36b975226e3b67a3bb6e2c4b", "eaed742b48b1f3e2d45ba6f79401b2ed5dc33b2123dfe216adb90d4bfa0ade26"]
