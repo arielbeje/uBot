@@ -274,6 +274,7 @@ class AdminCommands(commands.Cog):
     @commands.command()
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
+    @commands.bot_has_permissions(manage_roles=True)
     async def mute(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                   str(ctx.message.guild.id))
@@ -292,6 +293,7 @@ class AdminCommands(commands.Cog):
     @commands.command()
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
+    @commands.bot_has_permissions(manage_roles=True)
     async def tempmute(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
         """
         Temporarily mutes a member for the given duration. A reason can also be given.
