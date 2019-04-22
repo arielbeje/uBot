@@ -1,24 +1,12 @@
 import asyncio
 import datetime
-import humanfriendly
 import pytz
 from pytimeparse.timeparse import timeparse
 
 import discord
 from discord.ext import commands
 
-from utils import customchecks, sql
-
-
-async def ensure_unmute(server: discord.Guild, member: discord.Member, duration: int, role: discord.Role):
-    """
-    Sleeps for the given duration, then unmutes the member.
-    Also removes the mute row from the db.
-    """
-    await asyncio.sleep(duration)
-    await member.remove_roles(role, reason=f"Temporary mute of {humanfriendly.format_timespan(duration)} ended.")
-    await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?",
-                      str(server.id), str(member.id))
+from utils import customchecks, sql, punishmentshelper
 
 
 class AdminCommands(commands.Cog):
@@ -307,7 +295,7 @@ class AdminCommands(commands.Cog):
                                    description=f"Will be muted until {until.isoformat()}.",
                                    colour=discord.Colour.dark_green())
                 await ctx.send(embed=em)
-                asyncio.ensure_future(ensure_unmute(ctx.message.guild, member, delta, role))
+                asyncio.ensure_future(punishmentshelper.ensure_unmute(ctx.message.guild, member, delta, role))
             else:
                 em = discord.Embed(title="Error",
                                    description="The set mute role for this server does not exist" +

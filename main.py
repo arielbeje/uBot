@@ -1,5 +1,7 @@
 import asyncio
+import datetime
 import os
+import pytz
 import re
 
 import logging
@@ -8,7 +10,7 @@ from logging.handlers import TimedRotatingFileHandler
 import discord
 from discord.ext import commands
 
-from utils import customchecks, sql
+from utils import customchecks, sql, punishmentshelper
 
 workDir = os.getcwd()
 logDir = os.path.join(workDir, "logs")
@@ -108,6 +110,21 @@ async def on_ready():
     for guildId in undeletedGuildIds:
         logger.debug(f"Removed guild with id {guildId} from DB")
         await sql.deleteserver(guildId)
+
+    unfinishedMutes = await sql.fetch("SELECT * FROM mutes")
+    for serverid, userid, until in unfinishedMutes:
+        until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S.%f%z")
+        utcnow = pytz.utc.localize(datetime.datetime.utcnow())
+        roleid = (await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?", serverid))[0][0]
+        guild = bot.get_guild(int(serverid))
+        role = guild.get_role(int(roleid))
+        member = guild.get_member(int(userid))
+        if utcnow >= until:
+            await member.remove_roles(role, reason="Temporary mute ended.")
+            await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?", serverid, userid)
+        else:
+            duration = (utcnow - until).total_seconds()
+            asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, duration, role, True))
 
     logger.info(f"Logged in as: {bot.user.name} - {bot.user.id}")
     logger.info(f"Serving {len(bot.users)} users in {len(guilds)} server{('s' if len(guilds) > 1 else '')}")
