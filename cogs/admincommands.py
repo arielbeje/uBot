@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import humanfriendly
 import pytz
 from pytimeparse.timeparse import timeparse
 
@@ -286,15 +285,7 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title=f"Succesfully muted {member.display_name}",
                                colour=discord.Colour.dark_green())
             await ctx.send(embed=em)
-            em = discord.Embed(title="Mute notification",
-                               colour=discord.Colour.red())
-            em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
-            if reason is not None:
-                em.add_field(name="Reason", value=reason, inline=False)
-            try:
-                await member.send(embed=em)
-            except discord.errors.Forbidden:
-                pass
+            await punishmentshelper.notify(guild, title="Mute", reason=reason)
         else:
             em = discord.Embed(title="Error",
                                description="The set mute role for this server does not exist" +
@@ -328,18 +319,8 @@ class AdminCommands(commands.Cog):
                                    description=f"Will be muted until {until.isoformat()}.",
                                    colour=discord.Colour.dark_green())
                 await ctx.send(embed=em)
-                em = discord.Embed(title="Temporary mute notification",
-                                   colour=discord.Colour.red(),
-                                   timestamp=until)
-                em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
-                em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
-                if reason is not None:
-                    em.add_field(name="Reason", value=reason, inline=False)
-                em.add_field(name="Duration", value=humanfriendly.format_timespan(delta), inline=False)
-                try:
-                    await member.send(embed=em)
-                except discord.errors.Forbidden:
-                    pass
+                await punishmentshelper.notify(member, title="Temporary mute", reason=reason,
+                                               duration=delta, until=until)
                 asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, delta, role))
             else:
                 em = discord.Embed(title="Error",
@@ -364,15 +345,7 @@ class AdminCommands(commands.Cog):
         Does not delete any messages from the user.
         """
         guild = ctx.message.guild
-        em = discord.Embed(title="Ban notification",
-                           colour=discord.Colour.red())
-        em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
-        if reason is not None:
-            em.add_field(name="Reason", value=reason, inline=False)
-        try:
-            await member.send(embed=em)
-        except discord.errors.Forbidden:
-            pass
+        await punishmentshelper.notify(guild, title="Ban", reason=reason)
         await member.ban(reason=reason, delete_message_days=0)
         em = discord.Embed(title=f"Successfully banned {member.display_name}",
                            colour=discord.Colour.dark_green())
@@ -394,18 +367,8 @@ class AdminCommands(commands.Cog):
         prevban = await sql.fetch("SELECT until FROM bans WHERE serverid=? AND userid=?",
                                   str(guild.id), str(member.id))
         if len(prevban) == 0:
-            em = discord.Embed(title="Temporary ban notification",
-                               colour=discord.Colour.red(),
-                               timestamp=until)
-            em.set_footer(text="Will last until")
-            em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
-            if reason is not None:
-                em.add_field(name="Reason", value=reason, inline=False)
-            em.add_field(name="Duration", value=humanfriendly.format_timespan(delta), inline=False)
-            try:
-                await member.send(embed=em)
-            except discord.errors.Forbidden:
-                pass
+            await punishmentshelper.notify(guild, title="Temporary ban", reason=reason,
+                                           duration=delta, until=until)
             await member.ban(reason=reason, delete_message_days=0)
             await sql.execute("INSERT INTO bans VALUES (?, ?, ?)",
                               str(guild.id), str(member.id), until)

@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import humanfriendly
 from . import sql
 
@@ -31,3 +32,23 @@ async def ensure_unban(server: discord.Guild, member: Union[discord.Member, disc
     await server.unban(member, reason=reason)
     await sql.execute("DELETE FROM bans WHERE serverid=? AND userid=?",
                       str(server.id), str(member.id))
+
+
+async def notify(member: discord.Member, title: str,
+                 reason: str, duration: int = None, until: datetime.datetime = None):
+    """
+    Sends a private message to the member (if allowed) with the details of the punishment.
+    """
+    em = discord.Embed(title=title + " notification",
+                       colour=discord.Colour.red())
+    em.add_field(name="Server", value=f"{member.guild.name} (ID {member.guild.id})", inline=False)
+    if duration and until:
+        em.add_field(name="Duration", value=humanfriendly.format_timespan(duration), inline=False)
+        em.timestamp = until
+        em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
+    if reason is not None:
+        em.add_field(name="Reason", value=reason, inline=False)
+    try:
+        await member.send(embed=em)
+    except discord.errors.Forbidden:
+        pass
