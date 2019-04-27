@@ -313,7 +313,7 @@ class AdminCommands(commands.Cog):
         """
         guild = ctx.message.guild
         delta = timeparse(time)
-        until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
+        until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta)).replace(microsecond=0)
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
                                    str(guild.id), str(member.id))
         if len(prevmute) == 0:
@@ -390,14 +390,14 @@ class AdminCommands(commands.Cog):
         """
         guild = ctx.message.guild
         delta = timeparse(time)
-        until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
+        until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta)).replace(microsecond=0)
         prevban = await sql.fetch("SELECT until FROM bans WHERE serverid=? AND userid=?",
                                   str(guild.id), str(member.id))
         if len(prevban) == 0:
             em = discord.Embed(title="Temporary ban notification",
                                colour=discord.Colour.red(),
                                timestamp=until)
-            em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
+            em.set_footer(text="Will last until")
             em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
             if reason is not None:
                 em.add_field(name="Reason", value=reason, inline=False)
