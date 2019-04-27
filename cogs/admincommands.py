@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import humanfriendly
 import pytz
 from pytimeparse.timeparse import timeparse
 
@@ -299,23 +300,33 @@ class AdminCommands(commands.Cog):
         Temporarily mutes a member for the given duration. A reason can also be given.
         The reason will be saved in the audit log.
         """
+        guild = ctx.message.guild
         delta = timeparse(time)
         until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
-                                   str(ctx.message.guild.id), str(member.id))
+                                   str(guild.id), str(member.id))
         if len(prevmute) == 0:
             await sql.execute("INSERT INTO mutes VALUES (?, ?, ?)",
-                              str(ctx.message.guild.id), str(member.id), until)
+                              str(guild.id), str(member.id), until)
             roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
-                                      str(ctx.message.guild.id))
-            role = ctx.message.guild.get_role(int(roleRow[0][0]))
+                                      str(guild.id))
+            role = guild.get_role(int(roleRow[0][0]))
             if role is not None:
                 await member.add_roles(role, reason=reason)
                 em = discord.Embed(title=f"Succesfully muted {member.display_name}",
                                    description=f"Will be muted until {until.isoformat()}.",
                                    colour=discord.Colour.dark_green())
                 await ctx.send(embed=em)
-                asyncio.ensure_future(punishmentshelper.ensure_unmute(ctx.message.guild, member, delta, role))
+                em = discord.Embed(title="Temporary mute notification",
+                                   colour=discord.Colour.red(),
+                                   timestamp=until)
+                em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
+                em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
+                if reason is not None:
+                    em.add_field(name="Reason", value=reason, inline=False)
+                em.add_field(name="Duration", value=humanfriendly.format_timespan(delta), inline=False)
+                await member.send(embed=em)
+                asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, delta, role))
             else:
                 em = discord.Embed(title="Error",
                                    description="The set mute role for this server does not exist" +
