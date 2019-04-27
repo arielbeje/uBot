@@ -277,19 +277,27 @@ class AdminCommands(commands.Cog):
     @commands.has_permissions(manage_roles=True)
     @commands.bot_has_permissions(manage_roles=True)
     async def mute(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
+        guild = ctx.message.guild
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
-                                  str(ctx.message.guild.id))
-        role = ctx.message.guild.get_role(int(roleRow[0][0]))
+                                  str(guild.id))
+        role = guild.get_role(int(roleRow[0][0]))
         if role is not None:
             await member.add_roles(role, reason=reason)
             em = discord.Embed(title=f"Succesfully muted {member.display_name}",
                                colour=discord.Colour.dark_green())
+            await ctx.send(embed=em)
+            em = discord.Embed(title="Mute notification",
+                               colour=discord.Colour.red())
+            em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
+            if reason is not None:
+                em.add_field(name="Reason", value=reason, inline=False)
+            await member.send(embed=em)
         else:
             em = discord.Embed(title="Error",
                                description="The set mute role for this server does not exist" +
                                            f"You can set another role using `{ctx.prefix}setmuterole`.",
                                colour=discord.Colour.red())
-        await ctx.send(embed=em)
+            await ctx.send(embed=em)
 
     @commands.command()
     @customchecks.is_mod()
