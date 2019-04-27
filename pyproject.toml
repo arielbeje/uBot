@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ubot"
-version = "0.2.1"
+version = "0.2.2"
 description = "A bot made for the Factorio Discord server."
 authors = ["arielbeje <arielbeje@protonmail.com>"]
 license = "MIT"
