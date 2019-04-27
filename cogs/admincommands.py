@@ -364,19 +364,29 @@ class AdminCommands(commands.Cog):
         The reason will be saved in the audit log.
         No messages from the user are deleted
         """
+        guild = ctx.message.guild
         delta = timeparse(time)
         until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta))
         prevban = await sql.fetch("SELECT until FROM bans WHERE serverid=? AND userid=?",
-                                  str(ctx.message.guild.id), str(member.id))
+                                  str(guild.id), str(member.id))
         if len(prevban) == 0:
+            em = discord.Embed(title="Temporary ban notification",
+                               colour=discord.Colour.red(),
+                               timestamp=until)
+            em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
+            em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
+            if reason is not None:
+                em.add_field(name="Reason", value=reason, inline=False)
+            em.add_field(name="Duration", value=humanfriendly.format_timespan(delta), inline=False)
+            await member.send(embed=em)
             await member.ban(reason=reason, delete_message_days=0)
             await sql.execute("INSERT INTO bans VALUES (?, ?, ?)",
-                              str(ctx.message.guild.id), str(member.id), until)
+                              str(guild.id), str(member.id), until)
             em = discord.Embed(title=f"Succesfully banned {member.display_name}",
                                description=f"Will be banned until {until.isoformat()}.",
                                colour=discord.Colour.dark_green())
             await ctx.send(embed=em)
-            asyncio.ensure_future(punishmentshelper.ensure_unban(ctx.message.guild, member, delta))
+            asyncio.ensure_future(punishmentshelper.ensure_unban(guild, member, delta))
         else:
             until = datetime.datetime.strptime(prevban[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
             em = discord.Embed(title="Error",
