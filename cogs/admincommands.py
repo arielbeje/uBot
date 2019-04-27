@@ -285,7 +285,8 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title=f"Succesfully muted {member.display_name}",
                                colour=discord.Colour.dark_green())
             await ctx.send(embed=em)
-            await punishmentshelper.notify(guild, title="Mute", reason=reason)
+            await punishmentshelper.notify(guild, ctx.message.author,
+                                           title="Mute", reason=reason)
         else:
             em = discord.Embed(title="Error",
                                description="The set mute role for this server does not exist" +
@@ -319,7 +320,8 @@ class AdminCommands(commands.Cog):
                                    description=f"Will be muted until {until.isoformat()}.",
                                    colour=discord.Colour.dark_green())
                 await ctx.send(embed=em)
-                await punishmentshelper.notify(member, title="Temporary mute", reason=reason,
+                await punishmentshelper.notify(member, ctx.message.author,
+                                               title="Temporary mute", reason=reason,
                                                duration=delta, until=until)
                 asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, delta, role))
             else:
@@ -344,8 +346,8 @@ class AdminCommands(commands.Cog):
         Bans the user. A reason can also be given.
         Does not delete any messages from the user.
         """
-        guild = ctx.message.guild
-        await punishmentshelper.notify(guild, title="Ban", reason=reason)
+        await punishmentshelper.notify(member, ctx.message.author,
+                                       title="Ban", reason=reason)
         await member.ban(reason=reason, delete_message_days=0)
         em = discord.Embed(title=f"Successfully banned {member.display_name}",
                            colour=discord.Colour.dark_green())
@@ -367,7 +369,8 @@ class AdminCommands(commands.Cog):
         prevban = await sql.fetch("SELECT until FROM bans WHERE serverid=? AND userid=?",
                                   str(guild.id), str(member.id))
         if len(prevban) == 0:
-            await punishmentshelper.notify(guild, title="Temporary ban", reason=reason,
+            await punishmentshelper.notify(member, ctx.message.author,
+                                           title="Temporary ban", reason=reason,
                                            duration=delta, until=until)
             await member.ban(reason=reason, delete_message_days=0)
             await sql.execute("INSERT INTO bans VALUES (?, ?, ?)",

@@ -34,7 +34,7 @@ async def ensure_unban(server: discord.Guild, member: Union[discord.Member, disc
                       str(server.id), str(member.id))
 
 
-async def notify(member: discord.Member, title: str,
+async def notify(member: discord.Member, punisher: discord.Member, title: str,
                  reason: str, duration: int = None, until: datetime.datetime = None):
     """
     Sends a private message to the member (if allowed) with the details of the punishment.
@@ -48,6 +48,7 @@ async def notify(member: discord.Member, title: str,
         em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
     if reason is not None:
         em.add_field(name="Reason", value=reason, inline=False)
+    em.add_field(name="Punished by", value=f"{punisher.display_name} - {punisher.mention}")
     try:
         await member.send(embed=em)
     except discord.errors.Forbidden:
