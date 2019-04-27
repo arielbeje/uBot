@@ -357,6 +357,13 @@ class AdminCommands(commands.Cog):
         Bans the user. A reason can also be given.
         Does not delete any messages from the user.
         """
+        guild = ctx.message.guild
+        em = discord.Embed(title="Ban notification",
+                           colour=discord.Colour.red())
+        em.add_field(name="Server", value=f"{guild.name} (ID {guild.id})", inline=False)
+        if reason is not None:
+            em.add_field(name="Reason", value=reason, inline=False)
+        await member.send(embed=em)
         await member.ban(reason=reason, delete_message_days=0)
         em = discord.Embed(title=f"Successfully banned {member.display_name}",
                            colour=discord.Colour.dark_green())
