@@ -132,15 +132,22 @@ async def wiki_embed(url: str) -> discord.Embed:
     baseURL = "wiki.factorio.com" if not url.startswith('stable.') else "stable.wiki.factorio.com"
     templateURL = r"(https://stable.wiki.factorio.com\1)" if url.startswith('stable.') else r"(https://wiki.factorio.com\1)"
     if "may refer to:" in description:
-        url = soup.select(".mw-parser-output > ul > li > a")[0]["href"]
-        description = get_wiki_description((await get_soup(url))[1])
-
-    em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
-                       description=linkEx.sub(templateURL, description),
-                       url=url,
-                       colour=discord.Colour.dark_green())
-    if soup.find("div", class_="factorio-icon"):
-        em.set_thumbnail(url=f"https://{baseURL}{soup.find('div', class_='factorio-icon').find('img')['src']}")
+        title = soup.find("h1", id="firstHeading").get_text()
+        em = discord.Embed(title="Multiple pages share the title or description of " +
+                                 "\"{}\"".format(title),
+                           url = f"https://{baseURL}/{title}",
+                           colour=discord.Colour.red())
+        for item in soup.select(".mw-parser-output > ul")[0].find_all("li"):
+            item = item.find("a")
+            itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
+            em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{itemLink})", inline=True)
+    else:
+        em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
+                           description=linkEx.sub(templateURL, description),
+                           url=url,
+                           colour=discord.Colour.dark_green())
+        if soup.find("div", class_="factorio-icon"):
+            em.set_thumbnail(url=f"https://{baseURL}{soup.find('div', class_='factorio-icon').find('img')['src']}")
     return em
 
 
