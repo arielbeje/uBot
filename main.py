@@ -115,9 +115,9 @@ async def on_ready():
         await sql.deleteserver(guildId)
 
     unfinishedMutes = await sql.fetch("SELECT * FROM mutes")
+    utcnow = pytz.utc.localize(datetime.datetime.utcnow())
     for serverid, userid, until in unfinishedMutes:
         until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S.%f%z")
-        utcnow = pytz.utc.localize(datetime.datetime.utcnow())
         roleid = (await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?", serverid))[0][0]
         guild = bot.get_guild(int(serverid))
         role = guild.get_role(int(roleid))
@@ -127,12 +127,11 @@ async def on_ready():
             await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?", serverid, userid)
         else:
             duration = (utcnow - until).total_seconds()
-            asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, duration, role, True))
+            asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, duration, role, partialDuration=True))
 
     unfinishedBans = await sql.fetch("SELECT * FROM bans")
     for serverid, userid, until in unfinishedBans:
         until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S.%f%z")
-        utcnow = pytz.utc.localize(datetime.datetime.utcnow())
         guild = bot.get_guild(int(serverid))
         guildBans = await guild.bans()
         userid = int(userid)
@@ -147,7 +146,7 @@ async def on_ready():
             await sql.execute("DELETE FROM bans WHERE serverid=? AND userid=?", serverid, userid)
         else:
             duration = (utcnow - until).total_seconds()
-            asyncio.ensure_future(punishmentshelper.ensure_unban(guild, user, duration, True))
+            asyncio.ensure_future(punishmentshelper.ensure_unban(guild, user, duration, partialDuration=True))
 
     logger.info(f"Logged in as: {bot.user.name} - {bot.user.id}")
     logger.info(f"Serving {len(bot.users)} users in {len(guilds)} server{('s' if len(guilds) > 1 else '')}")
