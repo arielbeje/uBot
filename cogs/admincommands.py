@@ -33,7 +33,7 @@ class AdminCommands(commands.Cog):
         await ctx.send(embed=em)
 
     @modroles.command(name="add")
-    @customchecks.has_permissions(administrator=True)
+    @commands.has_permissions(administrator=True)
     async def add_mod_role(self, ctx: commands.Context, *, role: discord.Role):
         """
         Add a new moderator role to the defined ones.
@@ -147,7 +147,7 @@ class AdminCommands(commands.Cog):
         await ctx.send(embed=em)
 
     @commands.group(aliases=["purge"], invoke_without_command=True)
-    @customchecks.has_permissions(manage_messages=True, read_message_history=True)
+    @commands.has_permissions(manage_messages=True, read_message_history=True)
     async def prune(self, ctx: commands.Context, pruneNum: int):
         """
         Prunes a certain amount of messages. Can also use message ID.
@@ -175,7 +175,7 @@ class AdminCommands(commands.Cog):
             await ctx.send(embed=em)
 
     @prune.command(name="user")
-    @customchecks.has_permissions(manage_messages=True, read_message_history=True)
+    @commands.has_permissions(manage_messages=True, read_message_history=True)
     async def prune_member(self, ctx: commands.Context, wantedMember: discord.Member, pruneNum: int):
         """
         Prunes a certain amount of messages from a certain user. Can also use message ID.

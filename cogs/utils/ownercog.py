@@ -4,8 +4,6 @@ import inspect
 import discord
 from discord.ext import commands
 
-from utils import customchecks
-
 
 class OwnerCog(commands.Cog):
     def __init__(self, bot):
@@ -14,7 +12,7 @@ class OwnerCog(commands.Cog):
         type(self).__name__ = "Owner Commands"
 
     @commands.command(name="setavatar", aliases=["changeavatar", "setpic"])
-    @customchecks.is_owner()
+    @commands.is_owner()
     async def set_avatar(self, ctx: commands.Context, url: str = ""):
         """
         Changes the bot's avatar.
@@ -49,7 +47,7 @@ class OwnerCog(commands.Cog):
             await avatar_from_link(url)
 
     @commands.command(name="setname", aliases=["changename", "setusername", "changeusername"])
-    @customchecks.is_owner()
+    @commands.is_owner()
     async def set_name(self, ctx: commands.Context, *, name: str):
         """
         Changes the bot's username.
@@ -67,7 +65,7 @@ class OwnerCog(commands.Cog):
             await ctx.send(embed=em)
 
     @commands.command(name="eval", aliases=["debug"])
-    @customchecks.is_owner()
+    @commands.is_owner()
     async def eval(self, ctx: commands.Context, *, code: str):
         """
         Evaluates code.
@@ -108,7 +106,7 @@ class OwnerCog(commands.Cog):
             await ctx.send(embed=em)
 
     @commands.command(name="setplaying")
-    @customchecks.is_owner()
+    @commands.is_owner()
     async def set_playing(self, ctx: commands.Context, *, game: str = None):
         """
         Sets "currently playing" status.

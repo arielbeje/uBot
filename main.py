@@ -68,19 +68,20 @@ bot = commands.AutoShardedBot(command_prefix=get_prefix)
 @bot.event
 async def on_command_error(ctx: commands.Context, error: Exception):
     origerror = getattr(error, "original", error)
-    if isinstance(origerror, customchecks.NoPermsError):
-        em = discord.Embed(title="Error",
-                           description=f"You do not have sufficient permissions to use the command `{ctx.command}`",
-                           colour=discord.Colour.red())
-        await ctx.send(embed=em)
+    if isinstance(origerror, commands.errors.CommandNotFound):
+        pass
     elif isinstance(origerror, commands.MissingPermissions):
         description = origerror.args[0].replace('run command', f'use the command `{ctx.command}`')
         em = discord.Embed(title="Error",
                            description=description,
                            colour=discord.Colour.red())
         await ctx.send(embed=em)
-    elif isinstance(origerror, discord.ext.commands.errors.CommandNotFound):
-        pass
+    elif isinstance(origerror, customchecks.NotAModError):
+        em = discord.Embed(title="Error",
+                           description=f"You are not a moderator on this server.\n" +
+                                       f"For modifying moderator roles, see `{ctx.prefix}help modroles`",
+                           colour=discord.Colour.red())
+        await ctx.send(embed=em)
     elif isinstance(origerror, discord.errors.Forbidden):
         em = discord.Embed(title="Error",
                            description="I don't have sufficient permissions to do that.",
