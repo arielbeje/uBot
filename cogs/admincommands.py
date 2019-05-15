@@ -285,7 +285,7 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title=f"Succesfully muted {member.display_name}",
                                colour=discord.Colour.dark_green())
             await ctx.send(embed=em)
-            await punishmentshelper.notify(guild, ctx.message.author,
+            await punishmentshelper.notify(member, ctx.message.author,
                                            title="Mute", reason=reason)
         else:
             em = discord.Embed(title="Error",
