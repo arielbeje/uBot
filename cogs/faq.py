@@ -74,7 +74,7 @@ class FAQCog(commands.Cog):
         self.bot = bot
         type(self).__name__ = "Frequently Asked Questions"
 
-    @commands.group(name="faq", aliases=["tag", "tags", "faw"], invoke_without_command=True)
+    @commands.group(name="faq", aliases=["tag", "tags", "faw", "FAQ"], invoke_without_command=True)
     async def faq_command(self, ctx: commands.Context, *, query: str = ""):
         """
         Shows the list of available FAQ tags.
