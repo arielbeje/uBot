@@ -184,15 +184,20 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                     item = item.find_next("div", class_="mw-search-result-heading").find("a")
                     if langEx.search(item["title"]) is None:
                         engResults.append(item)
-                if (len(engResults) > 0):
-                    itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
-                    em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{itemLink})", inline=True)
+                if len(engResults) == 1:
+                  item = engResults[0]
+                  itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
+                  await bufferMsg.edit(embed=await wiki_embed(f"https://{baseURL}{itemLink}"))
+                elif len(engResults) > 1:
+                    for item in engResults:
+                        itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
+                        em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{itemLink})", inline=True)
+                    await bufferMsg.edit(embed=em)
                 else:
                     em = discord.Embed(title="Error",
                                        description=f"Could not find English results for \"{searchterm.title()}\" in {'' if not stable else 'stable '}wiki.",
                                        colour=discord.Colour.red())
                     await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
-                await bufferMsg.edit(embed=em)
             else:
                 await bufferMsg.edit(embed=await wiki_embed(url))
 
