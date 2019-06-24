@@ -185,13 +185,11 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                     if langEx.search(item["title"]) is None:
                         engResults.append(item)
                 if len(engResults) == 1:
-                  item = engResults[0]
-                  itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
-                  await bufferMsg.edit(embed=await wiki_embed(f"https://{baseURL}{itemLink}"))
+                    item = engResults[0]
+                    await bufferMsg.edit(embed=await wiki_embed(f"https://{baseURL}{item['href']}"))
                 elif len(engResults) > 1:
                     for item in engResults:
-                        itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
-                        em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{itemLink})", inline=True)
+                        em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{item['href']})", inline=True)
                     await bufferMsg.edit(embed=em)
                 else:
                     em = discord.Embed(title="Error",
