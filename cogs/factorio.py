@@ -321,6 +321,10 @@ class FactorioCog(commands.Cog):
 
     @commands.command()
     async def api(self, ctx: commands.Context, *, query: str = None):
+        """
+        Searches the [API documentation](https://lua-api.factorio.com/latest/) for the given query.
+        If no query is given, gives a link to the documentation.
+        """
         if query is None:
             em = discord.Embed(title="Latest API documentation",
                                url=BASE_API_URL,
