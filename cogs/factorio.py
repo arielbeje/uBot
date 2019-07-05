@@ -4,11 +4,14 @@ import feedparser
 import html
 import re
 import tomd
+from fuzzywuzzy import fuzz
 
 import discord
 from discord.ext import commands
 
 from typing import Tuple
+
+BASE_API_URL = "https://lua-api.factorio.com/latest/"
 
 headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
 referEx = re.compile(r".*? may refer to\:")
@@ -310,11 +313,48 @@ class FactorioCog(commands.Cog):
             await bufferMsg.edit(embed=em)
 
     @commands.command(name="0.17", aliases=[".17"])
-    async def dot17(self, ctx):
+    async def dot17(self, ctx: commands.Context):
         """
         Returns info about the release date of 0.17.
         """
         await ctx.invoke(self.bot.get_command("faq"), query="0.17")
+
+    @commands.command()
+    async def api(self, ctx: commands.Context, *, query: str = None):
+        if query is None:
+            em = discord.Embed(title="Latest API documentation",
+                               url=BASE_API_URL,
+                               colour=discord.Colour.gold())
+            await ctx.send(embed=em)
+            return
+        em = discord.Embed(title="Retrieving latest API documentation",
+                           description="This shouldn't take long.",
+                           colour=discord.Colour.gold())
+        bufferMsg = await ctx.send(embed=em)
+        response = await get_soup(BASE_API_URL)
+        if response[0] == 200:
+            soup = response[1]
+            hyperlinks = [td.find("a") for td in soup.find_all("td", class_="header")]
+            data = [(hyperlink.string, hyperlink["href"]) for hyperlink in hyperlinks]
+            closeItems = []
+            for item in data:
+                itemRatio = fuzz.ratio(query, item[0])
+                if itemRatio >= 75:
+                    closeItems.append((itemRatio, item))
+            closeItems.sort(key=lambda x: x[0], reverse=True)
+            closeItems = [item[1] for item in closeItems]
+            if len(closeItems) > 0:
+                em = discord.Embed(description="\n".join([f"[{item[0]}]({BASE_API_URL}{item[1]})" for item in closeItems]),
+                                   colour=discord.Colour.gold())
+            else:
+                em = discord.Embed(title="Error",
+                                   description=f"Could not find anything in the [API docs]({BASE_API_URL}) for \"{query}\"",
+                                   colour=discord.Colour.red())
+        else:
+            em = discord.Embed(title="Error",
+                               description="Could not reach lua-api.factorio.com.",
+                               colour=discord.Colour.red())
+        await bufferMsg.edit(embed=em)
 
 
 def setup(bot):
