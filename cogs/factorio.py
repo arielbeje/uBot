@@ -213,6 +213,8 @@ def process_query(query: str) -> Union[Tuple[str, List[str]], Tuple[str, str]]:
             return ("define", splitQuery[1].split("."))
         else:
             return ("class+property", splitQuery)
+    elif query.count(".") == 1 and is_camel_case(query.split(".")[0]):
+        return ("class+property", query.split("."))
     elif is_camel_case(query):
         return ("class", query)
     elif query.startswith("defines."):
@@ -236,9 +238,40 @@ def process_tr(tr: bs4.element.Tag) -> str:
         return f"`{data[0]}`"
 
 
-def process_table(table: bs4.element.Tag) -> List[Tuple[str, str]]:
+def process_table(table: bs4.element.Tag) -> List[str]:
     trs = table.find_all("tr", class_="element")
     return [process_tr(tr) for tr in trs]
+
+
+def process_class_tr(tr: bs4.element.Tag) -> str:
+    for a in tr.find_all("a"):
+        a["href"] = BASE_API_URL + a["href"]
+    data = (tr.find("td", class_="header"), tr.find("td", class_="description"))
+    nameSpan = data[0].find("span", class_="element-name")
+    if data[0].find("span", class_="attribute-type") is not None:
+        accessType = "param"
+        type_ = data[0].find("span", class_="param-type").text.strip()
+    else:
+        accessType = "func"
+    if accessType == "param":
+        attributeMode = data[0].find("span", class_="attribute-mode").text
+        header = f"`{nameSpan.text} :: {type_}` {attributeMode}"
+    else:
+        header = f"`{nameSpan.text}`"
+
+    contents = [item for item in data[1].contents if item != " "]
+    if len(contents) > 0:
+        if len(contents) > 1 and "\n" not in contents[0]:
+            description = tomd.convert(f"<p>{''.join([str(item) for item in contents[:-1]])}</p>").strip()
+        else:
+            description = contents[0].strip()
+        return f"{header} - {description}"
+    else:
+        return header
+
+
+def process_class_table(table: bs4.element.Tag) -> List[str]:
+    return [process_class_tr(tr) for tr in table.find_all("tr")]
 
 
 async def process_api(ctx: commands.Context, query: str):
@@ -283,6 +316,55 @@ async def process_api(ctx: commands.Context, query: str):
                                    description=description,
                                    colour=discord.Colour.gold())
             em.url = f"{BASE_API_URL}defines.html#{fullName}"
+        else:
+            em = discord.Embed(title="Error",
+                               description="Could not reach lua-api.factorio.com.",
+                               colour=discord.Colour.red())
+    elif processResult[0] == "class":
+        response = await get_soup(BASE_API_URL + "Classes.html")
+        if response[0] == 200:
+            tag = response[1].find("div", id=f"{processResult[1]}.brief")
+            if tag is None:
+                em = discord.Embed(title="Error",
+                                   description=f"Could not find `{query}` in API",
+                                   colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em)
+                return
+            table = tag.find("table", class_="brief-members")
+            data = process_class_table(table)
+            description = ""
+            for tr in data:
+                description += tr + "\n"
+            if len(description) > 2048:
+                em = discord.Embed(title="Result too long for embedding",
+                                   colour=discord.Colour.red())
+            else:
+                em = discord.Embed(title=query,
+                                   description=description,
+                                   colour=discord.Colour.gold())
+            em.url = f"{BASE_API_URL}{query}.html"
+        else:
+            em = discord.Embed(title="Error",
+                               description="Could not reach lua-api.factorio.com.",
+                               colour=discord.Colour.red())
+    elif processResult[0] == "class+property":
+        response = await get_soup(BASE_API_URL + "Classes.html")
+        if response[0] == 200:
+            class_ = processResult[1][0]
+            property_ = processResult[1][1]
+            tag = response[1].find("a", href=f"{class_}.html#{class_}.{property_}")
+            if tag is None:
+                em = discord.Embed(title="Error",
+                                   description=f"Could not find `{query}` in API",
+                                   colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em)
+                return
+            tr = tag.parent.parent.parent
+            description = process_class_tr(tr)
+            em = discord.Embed(title=query,
+                               description=description,
+                               colour=discord.Colour.gold())
+            em.url = f"{BASE_API_URL}{class_}.html#{class_}.{property_}"
         else:
             em = discord.Embed(title="Error",
                                description="Could not reach lua-api.factorio.com.",
