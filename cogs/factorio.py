@@ -4,12 +4,11 @@ import feedparser
 import html
 import re
 import tomd
-from fuzzywuzzy import fuzz
 
 import discord
 from discord.ext import commands
 
-from typing import Tuple
+from typing import List, Tuple, Union
 
 BASE_API_URL = "https://lua-api.factorio.com/latest/"
 
@@ -203,6 +202,97 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                 await bufferMsg.edit(embed=await wiki_embed(url))
 
 
+def is_camel_case(query: str) -> bool:
+    return query != query.lower() and query != query.upper() and "_" not in query
+
+
+def process_query(query: str) -> Union[Tuple[str, List[str]], Tuple[str, str]]:
+    if "::" in query:
+        splitQuery = query.split("::")
+        if query.startswith("Defines"):
+            return ("define", splitQuery[1].split("."))
+        else:
+            return ("class+property", splitQuery)
+    elif is_camel_case(query):
+        return ("class", query)
+    elif query.startswith("defines."):
+        return ("define", query.split(".")[1:])
+    else:
+        return ("event", query)
+
+
+def process_tr(tr: bs4.element.Tag) -> str:
+    for a in tr.find_all("a"):
+        a["href"] = BASE_API_URL + a["href"]
+    data = (tr.find("td", class_="header").string, tr.find("td", class_="description"))
+    contents = data[1].contents
+    if len(contents) > 0:
+        if len(contents) > 1 and "\n" not in contents[0]:
+            description = tomd.convert(f"<p>{''.join([str(item) for item in contents[:-1]])}</p>").strip()
+        else:
+            description = contents[0].split('\n')[0].strip()
+        return f"`{data[0]}` - {description}"
+    else:
+        return f"`{data[0]}`"
+
+
+def process_table(table: bs4.element.Tag) -> List[Tuple[str, str]]:
+    trs = table.find_all("tr", class_="element")
+    return [process_tr(tr) for tr in trs]
+
+
+async def process_api(ctx: commands.Context, query: str):
+    em = discord.Embed(title="Retrieving latest API documentation",
+                       description="This shouldn't take long.",
+                       colour=discord.Colour.gold())
+    bufferMsg = await ctx.send(embed=em)
+    processResult = process_query(query)
+    if processResult[0] == "define":
+        response = await get_soup(BASE_API_URL + "defines.html")
+        if response[0] == 200:
+            fullName = f"defines.{'.'.join(processResult[1])}"
+            tag = response[1].find(id=fullName)
+            if tag is None:
+                em = discord.Embed(title="Error",
+                                   description=f"Could not find `{query}` in API",
+                                   colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em)
+                return
+            tagType = str(tag).split(" ")[0][1:]  # For example, <div ....
+            if tagType == "div":
+                contents = tag.find("div", class_="element-content").find("p").contents
+                if len(contents) > 0:
+                    if len(contents) > 1 and "\n" not in contents[0]:
+                        for a in tag.find_all("a"):
+                            a["href"] = BASE_API_URL + a["href"]
+                        description = tomd.convert(f"<p>{''.join([str(item) for item in contents])}</p>").strip() + "\n"
+                    else:
+                        description = contents[0].split('\n')[0].strip() + "\n"
+                tables = tag.find_all("table", class_="brief-members")
+                for table in tables:
+                    data = process_table(table)
+                    for tr in data:
+                        description += tr + "\n"
+            else:  # Since the tag can be only a div or a tr
+                description = process_tr(tag)
+            if len(description) > 2048:
+                em = discord.Embed(title="Result too long for embedding",
+                                   colour=discord.Colour.gold())
+            else:
+                em = discord.Embed(title=fullName,
+                                   description=description,
+                                   colour=discord.Colour.gold())
+            em.url = f"{BASE_API_URL}defines.html#{fullName}"
+        else:
+            em = discord.Embed(title="Error",
+                               description="Could not reach lua-api.factorio.com.",
+                               colour=discord.Colour.red())
+    else:
+        em = discord.Embed(title="Not implemented yet",
+                           colour=discord.Colour.gold())
+    await bufferMsg.edit(embed=em)
+
+
 class FactorioCog(commands.Cog):
     def __init__(self, bot):
         super().__init__()
@@ -331,34 +421,7 @@ class FactorioCog(commands.Cog):
                                colour=discord.Colour.gold())
             await ctx.send(embed=em)
             return
-        em = discord.Embed(title="Retrieving latest API documentation",
-                           description="This shouldn't take long.",
-                           colour=discord.Colour.gold())
-        bufferMsg = await ctx.send(embed=em)
-        response = await get_soup(BASE_API_URL)
-        if response[0] == 200:
-            soup = response[1]
-            hyperlinks = [td.find("a") for td in soup.find_all("td", class_="header")]
-            data = [(hyperlink.string, hyperlink["href"]) for hyperlink in hyperlinks]
-            closeItems = []
-            for item in data:
-                itemRatio = fuzz.ratio(query, item[0])
-                if itemRatio >= 75:
-                    closeItems.append((itemRatio, item))
-            closeItems.sort(key=lambda x: x[0], reverse=True)
-            closeItems = [item[1] for item in closeItems]
-            if len(closeItems) > 0:
-                em = discord.Embed(description="\n".join([f"[{item[0]}]({BASE_API_URL}{item[1]})" for item in closeItems]),
-                                   colour=discord.Colour.gold())
-            else:
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find anything in the [API docs]({BASE_API_URL}) for \"{query}\"",
-                                   colour=discord.Colour.red())
-        else:
-            em = discord.Embed(title="Error",
-                               description="Could not reach lua-api.factorio.com.",
-                               colour=discord.Colour.red())
-        await bufferMsg.edit(embed=em)
+        await process_api(ctx, query)
 
 
 def setup(bot):
