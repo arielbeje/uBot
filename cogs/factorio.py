@@ -18,6 +18,7 @@ linkEx = re.compile(r"\((\/\S*)\)")
 fontEx = re.compile(r"<h\d>(.*?)(<font.*>(.*?)</font>)?</h\d>")
 langEx = re.compile(r"/(cs|de|es|fr|it|ja|nl|pl|pt-br|ru|sv|uk|zh|tr|ko|ms|da|hu|vi|pt-pt)$")
 fffEx = re.compile(r"Friday Facts #(\d*)")
+propEx = re.compile(r"^(\w+ :: [^:]+)(: (.+))?$")
 markdownEx = re.compile(r"([~*_`])")
 
 
@@ -274,6 +275,31 @@ def process_class_table(table: bs4.element.Tag) -> List[str]:
     return [process_class_tr(tr) for tr in table.find_all("tr")]
 
 
+def process_event_description(div: bs4.element.Tag) -> str:
+    for a in div.find_all("a"):
+        a["href"] = BASE_API_URL + a["href"]
+    data = (div.select("div.element-content > p"), div.find("div", class_="detail-content"))
+    paragraphs = []
+    for p in data[0]:
+        contents = p.contents
+        if not (len(contents) == 1 and len(contents[0].strip()) == 0):
+            paragraphs.append(html.unescape(tomd.convert(str(p))))
+    return "\n".join([p.strip().replace("\n", "") for p in paragraphs])
+
+
+def process_event_contents(div: bs4.element.Tag) -> List[str]:
+    contains = div.select("div.detail-content > div")
+    props = []
+    for prop in contains:
+        text = prop.text.replace("  ", " ")
+        searchResult = propEx.search(text).groups()
+        if searchResult[2] is not None:
+            props.append(f"`{searchResult[0]}` - {searchResult[2]}")
+        else:
+            props.append(f"`{searchResult[0]}`")
+    return props
+
+
 async def process_api(ctx: commands.Context, query: str):
     em = discord.Embed(title="Retrieving latest API documentation",
                        description="This shouldn't take long.",
@@ -369,9 +395,23 @@ async def process_api(ctx: commands.Context, query: str):
             em = discord.Embed(title="Error",
                                description="Could not reach lua-api.factorio.com.",
                                colour=discord.Colour.red())
-    else:
-        em = discord.Embed(title="Not implemented yet",
-                           colour=discord.Colour.gold())
+    else:  # event
+        response = await get_soup(BASE_API_URL + "events.html")
+        if response[0] == 200:
+            tag = response[1].find("div", id=query)
+            if tag is None:
+                em = discord.Embed(title="Error",
+                                   description=f"Could not find {query} in API",
+                                   colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em)
+                return
+            em = discord.Embed(title=query,
+                               description=process_event_description(tag),
+                               url=f"{BASE_API_URL}events.html#{query}",
+                               colour=discord.Colour.gold())
+            contents = process_event_contents(tag)
+            if len(contents) > 0:
+                em.add_field(name="Contains", value="\n".join(contents), inline=False)
     await bufferMsg.edit(embed=em)
 
 
