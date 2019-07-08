@@ -456,6 +456,7 @@ class FactorioCog(commands.Cog):
                 tagType = str(tag).split(" ")[0][1:]  # For example, <div ....
                 if tagType == "div":
                     contents = tag.find("div", class_="element-content").find("p").contents
+                    description = ""
                     if len(contents) > 0:
                         if len(contents) > 1 and "\n" not in contents[0]:
                             for a in tag.find_all("a"):
@@ -502,7 +503,7 @@ class FactorioCog(commands.Cog):
                 description += "\n".join(data)
                 if len(description) > 2048:
                     em = discord.Embed(title="Result too long for embedding",
-                                       colour=discord.Colour.red())
+                                       colour=discord.Colour.gold())
                 else:
                     em = discord.Embed(title=query,
                                        description=description,
