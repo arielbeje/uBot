@@ -275,6 +275,15 @@ def process_class_table(table: bs4.element.Tag) -> List[str]:
     return [process_class_tr(tr) for tr in table.find_all("tr")]
 
 
+def get_class_description(soup: bs4.BeautifulSoup, class_: str) -> str:
+    a = soup.select(f"tr > td.header > a[href=\"{class_}.html\"]")
+    if len(a) == 1:
+        descriptionTag = a[0].parent.parent.find("td", class_="description")
+        descriptionRaw = "".join([str(content) for content in descriptionTag.contents])
+        return tomd.convert(f"<p>{descriptionRaw}</p>").strip()
+    return None
+
+
 def process_event_description(div: bs4.element.Tag) -> str:
     for a in div.find_all("a"):
         a["href"] = BASE_API_URL + a["href"]
@@ -358,9 +367,12 @@ async def process_api(ctx: commands.Context, query: str):
                 return
             table = tag.find("table", class_="brief-members")
             data = process_class_table(table)
-            description = ""
-            for tr in data:
-                description += tr + "\n"
+            description = get_class_description(response[1], processResult[1])
+            if description is not None:
+                description += "\n"
+            else:
+                description = ""
+            description += "\n".join(data)
             if len(description) > 2048:
                 em = discord.Embed(title="Result too long for embedding",
                                    colour=discord.Colour.red())
