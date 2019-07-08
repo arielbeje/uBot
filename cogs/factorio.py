@@ -224,7 +224,7 @@ def process_query(query: str) -> Union[Tuple[str, List[str]], Tuple[str, str]]:
         return ("event", query)
 
 
-def process_tr(tr: bs4.element.Tag) -> str:
+def define_tr_to_str(tr: bs4.element.Tag) -> str:
     for a in tr.find_all("a"):
         a["href"] = BASE_API_URL + a["href"]
     data = (tr.find("td", class_="header").string, tr.find("td", class_="description"))
@@ -239,12 +239,12 @@ def process_tr(tr: bs4.element.Tag) -> str:
         return f"`{data[0]}`"
 
 
-def process_table(table: bs4.element.Tag) -> List[str]:
+def define_table_to_strs(table: bs4.element.Tag) -> List[str]:
     trs = table.find_all("tr", class_="element")
-    return [process_tr(tr) for tr in trs]
+    return [define_tr_to_str(tr) for tr in trs]
 
 
-def process_class_tr(tr: bs4.element.Tag) -> str:
+def class_tr_to_str(tr: bs4.element.Tag) -> str:
     for a in tr.find_all("a"):
         a["href"] = BASE_API_URL + a["href"]
     data = (tr.find("td", class_="header"), tr.find("td", class_="description"))
@@ -271,8 +271,8 @@ def process_class_tr(tr: bs4.element.Tag) -> str:
         return header
 
 
-def process_class_table(table: bs4.element.Tag) -> List[str]:
-    return [process_class_tr(tr) for tr in table.find_all("tr")]
+def class_table_to_strs(table: bs4.element.Tag) -> List[str]:
+    return [class_tr_to_str(tr) for tr in table.find_all("tr")]
 
 
 def get_class_description(soup: bs4.BeautifulSoup, class_: str) -> str:
@@ -284,7 +284,7 @@ def get_class_description(soup: bs4.BeautifulSoup, class_: str) -> str:
     return None
 
 
-def process_event_description(div: bs4.element.Tag) -> str:
+def get_event_description(div: bs4.element.Tag) -> str:
     for a in div.find_all("a"):
         a["href"] = BASE_API_URL + a["href"]
     data = (div.select("div.element-content > p"), div.find("div", class_="detail-content"))
@@ -296,7 +296,7 @@ def process_event_description(div: bs4.element.Tag) -> str:
     return "\n".join([p.strip().replace("\n", "") for p in paragraphs])
 
 
-def process_event_contents(div: bs4.element.Tag) -> List[str]:
+def get_event_contents(div: bs4.element.Tag) -> List[str]:
     contains = div.select("div.detail-content > div")
     props = []
     for prop in contains:
@@ -307,124 +307,6 @@ def process_event_contents(div: bs4.element.Tag) -> List[str]:
         else:
             props.append(f"`{searchResult[0]}`")
     return props
-
-
-async def process_api(ctx: commands.Context, query: str):
-    em = discord.Embed(title="Retrieving latest API documentation",
-                       description="This shouldn't take long.",
-                       colour=discord.Colour.gold())
-    bufferMsg = await ctx.send(embed=em)
-    processResult = process_query(query)
-    if processResult[0] == "define":
-        response = await get_soup(BASE_API_URL + "defines.html")
-        if response[0] == 200:
-            fullName = f"defines.{'.'.join(processResult[1])}"
-            tag = response[1].find(id=fullName)
-            if tag is None:
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find `{query}` in API",
-                                   colour=discord.Colour.red())
-                await bufferMsg.edit(embed=em)
-                return
-            tagType = str(tag).split(" ")[0][1:]  # For example, <div ....
-            if tagType == "div":
-                contents = tag.find("div", class_="element-content").find("p").contents
-                if len(contents) > 0:
-                    if len(contents) > 1 and "\n" not in contents[0]:
-                        for a in tag.find_all("a"):
-                            a["href"] = BASE_API_URL + a["href"]
-                        description = tomd.convert(f"<p>{''.join([str(item) for item in contents])}</p>").strip() + "\n"
-                    else:
-                        description = contents[0].split('\n')[0].strip() + "\n"
-                tables = tag.find_all("table", class_="brief-members")
-                for table in tables:
-                    data = process_table(table)
-                    for tr in data:
-                        description += tr + "\n"
-            else:  # Since the tag can be only a div or a tr
-                description = process_tr(tag)
-            if len(description) > 2048:
-                em = discord.Embed(title="Result too long for embedding",
-                                   colour=discord.Colour.gold())
-            else:
-                em = discord.Embed(title=fullName,
-                                   description=description,
-                                   colour=discord.Colour.gold())
-            em.url = f"{BASE_API_URL}defines.html#{fullName}"
-        else:
-            em = discord.Embed(title="Error",
-                               description="Could not reach lua-api.factorio.com.",
-                               colour=discord.Colour.red())
-    elif processResult[0] == "class":
-        response = await get_soup(BASE_API_URL + "Classes.html")
-        if response[0] == 200:
-            tag = response[1].find("div", id=f"{processResult[1]}.brief")
-            if tag is None:
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find `{query}` in API",
-                                   colour=discord.Colour.red())
-                await bufferMsg.edit(embed=em)
-                return
-            table = tag.find("table", class_="brief-members")
-            data = process_class_table(table)
-            description = get_class_description(response[1], processResult[1])
-            if description is not None:
-                description += "\n"
-            else:
-                description = ""
-            description += "\n".join(data)
-            if len(description) > 2048:
-                em = discord.Embed(title="Result too long for embedding",
-                                   colour=discord.Colour.red())
-            else:
-                em = discord.Embed(title=query,
-                                   description=description,
-                                   colour=discord.Colour.gold())
-            em.url = f"{BASE_API_URL}{query}.html"
-        else:
-            em = discord.Embed(title="Error",
-                               description="Could not reach lua-api.factorio.com.",
-                               colour=discord.Colour.red())
-    elif processResult[0] == "class+property":
-        response = await get_soup(BASE_API_URL + "Classes.html")
-        if response[0] == 200:
-            class_ = processResult[1][0]
-            property_ = processResult[1][1]
-            tag = response[1].find("a", href=f"{class_}.html#{class_}.{property_}")
-            if tag is None:
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find `{query}` in API",
-                                   colour=discord.Colour.red())
-                await bufferMsg.edit(embed=em)
-                return
-            tr = tag.parent.parent.parent
-            description = process_class_tr(tr)
-            em = discord.Embed(title=query,
-                               description=description,
-                               colour=discord.Colour.gold())
-            em.url = f"{BASE_API_URL}{class_}.html#{class_}.{property_}"
-        else:
-            em = discord.Embed(title="Error",
-                               description="Could not reach lua-api.factorio.com.",
-                               colour=discord.Colour.red())
-    else:  # event
-        response = await get_soup(BASE_API_URL + "events.html")
-        if response[0] == 200:
-            tag = response[1].find("div", id=query)
-            if tag is None:
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find {query} in API",
-                                   colour=discord.Colour.red())
-                await bufferMsg.edit(embed=em)
-                return
-            em = discord.Embed(title=query,
-                               description=process_event_description(tag),
-                               url=f"{BASE_API_URL}events.html#{query}",
-                               colour=discord.Colour.gold())
-            contents = process_event_contents(tag)
-            if len(contents) > 0:
-                em.add_field(name="Contains", value="\n".join(contents), inline=False)
-    await bufferMsg.edit(embed=em)
 
 
 class FactorioCog(commands.Cog):
@@ -555,7 +437,121 @@ class FactorioCog(commands.Cog):
                                colour=discord.Colour.gold())
             await ctx.send(embed=em)
             return
-        await process_api(ctx, query)
+        em = discord.Embed(title="Retrieving latest API documentation",
+                           description="This shouldn't take long.",
+                           colour=discord.Colour.gold())
+        bufferMsg = await ctx.send(embed=em)
+        processResult = process_query(query)
+        if processResult[0] == "define":
+            response = await get_soup(BASE_API_URL + "defines.html")
+            if response[0] == 200:
+                fullName = f"defines.{'.'.join(processResult[1])}"
+                tag = response[1].find(id=fullName)
+                if tag is None:
+                    em = discord.Embed(title="Error",
+                                       description=f"Could not find `{query}` in API",
+                                       colour=discord.Colour.red())
+                    await bufferMsg.edit(embed=em)
+                    return
+                tagType = str(tag).split(" ")[0][1:]  # For example, <div ....
+                if tagType == "div":
+                    contents = tag.find("div", class_="element-content").find("p").contents
+                    if len(contents) > 0:
+                        if len(contents) > 1 and "\n" not in contents[0]:
+                            for a in tag.find_all("a"):
+                                a["href"] = BASE_API_URL + a["href"]
+                            description = tomd.convert(f"<p>{''.join([str(item) for item in contents])}</p>").strip() + "\n"
+                        else:
+                            description = contents[0].split('\n')[0].strip() + "\n"
+                    tables = tag.find_all("table", class_="brief-members")
+                    for table in tables:
+                        data = define_table_to_strs(table)
+                        for tr in data:
+                            description += tr + "\n"
+                else:  # Since the tag can be only a div or a tr
+                    description = define_tr_to_str(tag)
+                if len(description) > 2048:
+                    em = discord.Embed(title="Result too long for embedding",
+                                       colour=discord.Colour.gold())
+                else:
+                    em = discord.Embed(title=fullName,
+                                       description=description,
+                                       colour=discord.Colour.gold())
+                em.url = f"{BASE_API_URL}defines.html#{fullName}"
+            else:
+                em = discord.Embed(title="Error",
+                                   description="Could not reach lua-api.factorio.com.",
+                                   colour=discord.Colour.red())
+        elif processResult[0] == "class":
+            response = await get_soup(BASE_API_URL + "Classes.html")
+            if response[0] == 200:
+                tag = response[1].find("div", id=f"{processResult[1]}.brief")
+                if tag is None:
+                    em = discord.Embed(title="Error",
+                                       description=f"Could not find `{query}` in API",
+                                       colour=discord.Colour.red())
+                    await bufferMsg.edit(embed=em)
+                    return
+                table = tag.find("table", class_="brief-members")
+                data = class_table_to_strs(table)
+                description = get_class_description(response[1], processResult[1])
+                if description is not None:
+                    description += "\n"
+                else:
+                    description = ""
+                description += "\n".join(data)
+                if len(description) > 2048:
+                    em = discord.Embed(title="Result too long for embedding",
+                                       colour=discord.Colour.red())
+                else:
+                    em = discord.Embed(title=query,
+                                       description=description,
+                                       colour=discord.Colour.gold())
+                em.url = f"{BASE_API_URL}{query}.html"
+            else:
+                em = discord.Embed(title="Error",
+                                   description="Could not reach lua-api.factorio.com.",
+                                   colour=discord.Colour.red())
+        elif processResult[0] == "class+property":
+            response = await get_soup(BASE_API_URL + "Classes.html")
+            if response[0] == 200:
+                class_ = processResult[1][0]
+                property_ = processResult[1][1]
+                tag = response[1].find("a", href=f"{class_}.html#{class_}.{property_}")
+                if tag is None:
+                    em = discord.Embed(title="Error",
+                                       description=f"Could not find `{query}` in API",
+                                       colour=discord.Colour.red())
+                    await bufferMsg.edit(embed=em)
+                    return
+                tr = tag.parent.parent.parent
+                description = class_tr_to_str(tr)
+                em = discord.Embed(title=query,
+                                   description=description,
+                                   colour=discord.Colour.gold())
+                em.url = f"{BASE_API_URL}{class_}.html#{class_}.{property_}"
+            else:
+                em = discord.Embed(title="Error",
+                                   description="Could not reach lua-api.factorio.com.",
+                                   colour=discord.Colour.red())
+        else:  # event
+            response = await get_soup(BASE_API_URL + "events.html")
+            if response[0] == 200:
+                tag = response[1].find("div", id=query)
+                if tag is None:
+                    em = discord.Embed(title="Error",
+                                       description=f"Could not find {query} in API",
+                                       colour=discord.Colour.red())
+                    await bufferMsg.edit(embed=em)
+                    return
+                em = discord.Embed(title=query,
+                                   description=get_event_description(tag),
+                                   url=f"{BASE_API_URL}events.html#{query}",
+                                   colour=discord.Colour.gold())
+                contents = get_event_contents(tag)
+                if len(contents) > 0:
+                    em.add_field(name="Contains", value="\n".join(contents), inline=False)
+        await bufferMsg.edit(embed=em)
 
 
 def setup(bot):
