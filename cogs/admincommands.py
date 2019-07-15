@@ -389,6 +389,9 @@ class AdminCommands(commands.Cog):
                 await member.remove_roles(role, reason=f"Unmuted by {ctx.message.author.display_name}")
                 await punishmentshelper.notify(member, ctx.message.author,
                                                title="Unmute", reason=reason)
+            em = discord.Embed(title=f"Successfully unmuted {member.display_name}",
+                               colour=discord.Colour.dark_green())
+            await ctx.send(embed=em)
 
     @commands.command()
     @customchecks.is_mod()
