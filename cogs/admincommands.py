@@ -280,18 +280,34 @@ class AdminCommands(commands.Cog):
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                   str(guild.id))
         role = guild.get_role(int(roleRow[0][0]))
-        if role is not None:
-            await member.add_roles(role, reason=reason)
-            em = discord.Embed(title=f"Succesfully muted {member.display_name}",
-                               colour=discord.Colour.dark_green())
-            await ctx.send(embed=em)
-            await punishmentshelper.notify(member, ctx.message.author,
-                                           title="Mute", reason=reason)
+        prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
+                                   str(guild.id), str(member.id))
+        if len(prevmute) == 0:
+            if role is not None:
+                await sql.execute("INSERT INTO mutes VALUES (?, ?, ?)",
+                                  str(guild.id), str(member.id), None)
+                await member.add_roles(role, reason=reason)
+                em = discord.Embed(title=f"Succesfully muted {member.display_name}",
+                                   colour=discord.Colour.dark_green())
+                await ctx.send(embed=em)
+                await punishmentshelper.notify(member, ctx.message.author,
+                                               title="Mute", reason=reason)
+            else:
+                em = discord.Embed(title="Error",
+                                   description="The set mute role for this server does not exist" +
+                                               f"You can set another role using `{ctx.prefix}setmuterole`.",
+                                   colour=discord.Colour.red())
+                await ctx.send(embed=em)
         else:
-            em = discord.Embed(title="Error",
-                               description="The set mute role for this server does not exist" +
-                                           f"You can set another role using `{ctx.prefix}setmuterole`.",
-                               colour=discord.Colour.red())
+            if prevmute[0][0] is not None:
+                until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+                em = discord.Embed(title="Error",
+                                   description=f"User is already muted until {until.isoformat()}.",
+                                   colour=discord.Colour.red())
+            else:
+                em = discord.Embed(title="Error",
+                                   description="User is already permanently muted.",
+                                   colour=discord.Colour.red())
             await ctx.send(embed=em)
 
     @commands.command()
@@ -323,7 +339,7 @@ class AdminCommands(commands.Cog):
                 await punishmentshelper.notify(member, ctx.message.author,
                                                title="Temporary mute", reason=reason,
                                                duration=delta, until=until)
-                asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, delta, role))
+                asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member.id, delta, role))
             else:
                 em = discord.Embed(title="Error",
                                    description="The set mute role for this server does not exist" +
@@ -331,10 +347,15 @@ class AdminCommands(commands.Cog):
                                    colour=discord.Colour.red())
                 await ctx.send(embed=em)
         else:
-            until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
-            em = discord.Embed(title="Error",
-                               description=f"User is already muted until {until.isoformat()}.",
-                               colour=discord.Colour.red())
+            if prevmute[0][0] is not None:
+                until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+                em = discord.Embed(title="Error",
+                                   description=f"User is already muted until {until.isoformat()}.",
+                                   colour=discord.Colour.red())
+            else:
+                em = discord.Embed(title="Error",
+                                   description="User is already permanently muted.",
+                                   colour=discord.Colour.red())
             await ctx.send(embed=em)
 
     @commands.command()

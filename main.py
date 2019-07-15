@@ -117,6 +117,8 @@ async def on_ready():
     unfinishedMutes = await sql.fetch("SELECT * FROM mutes")
     utcnow = pytz.utc.localize(datetime.datetime.utcnow())
     for serverid, userid, until in unfinishedMutes:
+        if until is None:
+            continue
         until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S%z")
         roleid = (await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?", serverid))[0][0]
         guild = bot.get_guild(int(serverid))
@@ -128,7 +130,7 @@ async def on_ready():
             await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?", serverid, userid)
         else:
             duration = (utcnow - until).total_seconds()
-            asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member, duration, role, partialDuration=True))
+            asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, int(userid), duration, role, partialDuration=True))
 
     unfinishedBans = await sql.fetch("SELECT * FROM bans")
     for serverid, userid, until in unfinishedBans:
@@ -200,6 +202,19 @@ async def on_member_join(member: discord.Member):
             joinLeaveChannel = bot.get_channel(int(joinLeaveID))
             await joinLeaveChannel.send(f"**Join** - {member.mention}, account created at {member.created_at.isoformat()}.\n"
                                         f"ID {member.id}. {member.guild.member_count} members.")
+    muteRow = await sql.fetch("SELECT * FROM mutes WHERE userid=?", str(member.id))
+    if len(muteRow) > 0:
+        muteRow = muteRow[0]
+        roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
+                                  str(member.guild.id))
+        role = member.guild.get_role(int(roleRow[0][0]))
+        if muteRow[2] is not None and role is not None:
+            utcnow = pytz.utc.localize(datetime.datetime.utcnow())
+            until = datetime.datetime.strptime(muteRow[2], "%Y-%m-%d %H:%M:%S%z")
+            if utcnow < until:
+                await member.add_roles(role)  # ensure_unmute is already running
+        elif role is not None:
+            await member.add_roles(role)
 
 
 @bot.event
