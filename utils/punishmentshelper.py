@@ -18,9 +18,12 @@ async def ensure_unmute(server: discord.Guild, member_id: int, duration: int,
     reason = "Temporary mute " + (f"of {humanfriendly.format_timespan(duration)} " if not partialDuration else "") + "ended."
     member = server.get_member(member_id)
     if member is not None:
-        await member.remove_roles(role, reason=reason)
+        try:
+            await member.remove_roles(role, reason=reason)
+        except discord.HTTPException:
+            pass
     await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?",
-                      str(server.id), str(member.id))
+                      str(server.id), str(member_id))
 
 
 async def ensure_unban(server: discord.Guild, member: Union[discord.Member, discord.User],
@@ -50,7 +53,7 @@ async def notify(member: discord.Member, punisher: discord.Member, title: str,
         em.set_footer(text="Will last until")  # Footer will be `Will last until • {until}`
     if reason is not None:
         em.add_field(name="Reason", value=reason, inline=False)
-    em.add_field(name="Punished by", value=f"{punisher.display_name} - {punisher.mention}")
+    em.add_field(name="Punished/modified by", value=f"{punisher.display_name} - {punisher.mention}")
     try:
         await member.send(embed=em)
     except discord.errors.Forbidden:

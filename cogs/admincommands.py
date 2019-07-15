@@ -360,6 +360,29 @@ class AdminCommands(commands.Cog):
 
     @commands.command()
     @customchecks.is_mod()
+    @commands.has_permissions(manage_roles=True)
+    @commands.bot_has_permissions(manage_roles=True)
+    async def unmute(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
+        """
+        Unmutes a member. A reason can also be given.
+        The reason will be saved in the audit log.
+        """
+        guild = ctx.message.guild
+        prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
+                                   str(guild.id), str(member.id))
+        if len(prevmute) > 0:
+            await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?",
+                              str(guild.id), str(member.id))
+            roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
+                                      str(guild.id))
+            role = guild.get_role(int(roleRow[0][0]))
+            if role is not None:
+                await member.remove_roles(role, reason=f"Unmuted by {ctx.message.author.display_name}")
+                await punishmentshelper.notify(member, ctx.message.author,
+                                               title="Unmute", reason=reason)
+
+    @commands.command()
+    @customchecks.is_mod()
     @commands.has_permissions(ban_members=True)
     @discord.ext.commands.bot_has_permissions(ban_members=True)
     async def ban(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
