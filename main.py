@@ -122,10 +122,13 @@ async def on_ready():
         until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S%z")
         roleid = (await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?", serverid))[0][0]
         guild = bot.get_guild(int(serverid))
-        role = guild.get_role(int(roleid))
+        if roleid is not None:
+            role = guild.get_role(int(roleid))
+        else:
+            role = None
         member = guild.get_member(int(userid))
         if utcnow >= until:
-            if member is not None:
+            if member is not None and role is not None:
                 await member.remove_roles(role, reason="Temporary mute ended.")
             await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?", serverid, userid)
         else:
@@ -207,7 +210,10 @@ async def on_member_join(member: discord.Member):
         muteRow = muteRow[0]
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                   str(member.guild.id))
-        role = member.guild.get_role(int(roleRow[0][0]))
+        if roleRow[0][0] is not None:
+            role = member.guild.get_role(int(roleRow[0][0]))
+        else:
+            role = None
         if muteRow[2] is not None and role is not None:
             utcnow = pytz.utc.localize(datetime.datetime.utcnow())
             until = datetime.datetime.strptime(muteRow[2], "%Y-%m-%d %H:%M:%S%z")

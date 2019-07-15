@@ -279,7 +279,10 @@ class AdminCommands(commands.Cog):
         guild = ctx.message.guild
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                   str(guild.id))
-        role = guild.get_role(int(roleRow[0][0]))
+        if roleRow[0][0] is not None:
+            role = guild.get_role(int(roleRow[0][0]))
+        else:
+            role = None
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
                                    str(guild.id), str(member.id))
         if len(prevmute) == 0:
@@ -300,7 +303,7 @@ class AdminCommands(commands.Cog):
                 await ctx.send(embed=em)
         else:
             if prevmute[0][0] is not None:
-                until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+                until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S%z")
                 em = discord.Embed(title="Error",
                                    description=f"User is already muted until {until.isoformat()}.",
                                    colour=discord.Colour.red())
@@ -329,7 +332,10 @@ class AdminCommands(commands.Cog):
                               str(guild.id), str(member.id), until)
             roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                       str(guild.id))
-            role = guild.get_role(int(roleRow[0][0]))
+            if roleRow[0][0] is not None:
+                role = guild.get_role(int(roleRow[0][0]))
+            else:
+                role = None
             if role is not None:
                 await member.add_roles(role, reason=reason)
                 em = discord.Embed(title=f"Succesfully muted {member.display_name}",
@@ -348,7 +354,7 @@ class AdminCommands(commands.Cog):
                 await ctx.send(embed=em)
         else:
             if prevmute[0][0] is not None:
-                until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+                until = datetime.datetime.strptime(prevmute[0][0], "%Y-%m-%d %H:%M:%S%z")
                 em = discord.Embed(title="Error",
                                    description=f"User is already muted until {until.isoformat()}.",
                                    colour=discord.Colour.red())
@@ -375,7 +381,10 @@ class AdminCommands(commands.Cog):
                               str(guild.id), str(member.id))
             roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                       str(guild.id))
-            role = guild.get_role(int(roleRow[0][0]))
+            if roleRow[0][0] is not None:
+                role = guild.get_role(int(roleRow[0][0]))
+            else:
+                role = None
             if role is not None:
                 await member.remove_roles(role, reason=f"Unmuted by {ctx.message.author.display_name}")
                 await punishmentshelper.notify(member, ctx.message.author,
@@ -425,7 +434,7 @@ class AdminCommands(commands.Cog):
             await ctx.send(embed=em)
             asyncio.ensure_future(punishmentshelper.ensure_unban(guild, member, delta))
         else:
-            until = datetime.datetime.strptime(prevban[0][0], "%Y-%m-%d %H:%M:%S.%f%z")
+            until = datetime.datetime.strptime(prevban[0][0], "%Y-%m-%d %H:%M:%S%z")
             em = discord.Embed(title="Error",
                                description=f"User is already banned until {until.isoformat()}.",
                                colour=discord.Colour.red())
