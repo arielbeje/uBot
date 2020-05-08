@@ -331,7 +331,7 @@ class FactorioCog(commands.Cog):
                                colour=discord.Colour.gold())
             bufferMsg = await ctx.send(embed=em)
             async with ctx.channel.typing():
-                response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}")
+                response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}?version=any")
                 if response[0] == 200:
                     soup = response[1]
                     if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
