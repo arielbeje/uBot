@@ -3,7 +3,6 @@ FROM python:3.7
 ARG TOKEN
 ENV UBOT=${TOKEN}
 
-RUN mkdir /code
 WORKDIR /code
 COPY . .
 
