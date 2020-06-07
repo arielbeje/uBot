@@ -6,7 +6,6 @@ ENV UBOT=${TOKEN}
 WORKDIR /code
 COPY . .
 
-RUN pip install --upgrade pip \
-    && pip install .
+RUN pip install .
 
 ENTRYPOINT python main.py
