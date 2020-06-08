@@ -37,7 +37,7 @@ async def embed_faq(ctx: commands.Context, bot: commands.AutoShardedBot, query: 
     author = bot.get_user(int(queryRow[4]))
     authorName = getattr(ctx.guild.get_member(author.id), "display_name", None)
     if authorName is not None and author.avatar:
-        authorPic = "https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
+        authorPic = f"https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
     else:
         authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
     em = discord.Embed(title=title,
