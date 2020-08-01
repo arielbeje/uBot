@@ -39,8 +39,8 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     """
     taglist = []
     fields = []
-    title = result.find("div", class_="mod-card-info-container").find("h2", class_="mod-card-title").find("a")
-    summary = result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-summary").string
+    title = result.find("div", class_="").find("h2", class_="mb0").find("a")
+    summary = result.find("div", class_="panel-inset-lighter").find("p", class_="pre-line").string
     em = discord.Embed(title=title.string,
                        url=f"https://mods.factorio.com{title['href'].replace(' ', '%20')}",
                        description=markdownEx.sub(r"\\\1", summary),
@@ -334,25 +334,25 @@ class FactorioCog(commands.Cog):
                 response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}?version=any")
                 if response[0] == 200:
                     soup = response[1]
-                    if " 0 " in soup.find("span", class_="active-filters-bar-total-mods").string:
+                    if " 0 " in soup.find("div", class_="grey").string:
                         em = discord.Embed(title="Error",
                                            description=f"Could not find \"{modname.title()}\" in mod portal.",
                                            colour=discord.Colour.red())
                         await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
-                    elif soup.find_all("div", class_="mod-card"):
-                        if len(soup.find_all("div", class_="mod-card")) > 1:
+                    elif soup.find_all("div", class_="flex-column"):
+                        if len(soup.find_all("div", class_="flex-column")) > 1:
                             em = discord.Embed(title=f"Search results for \"{modname}\"",
                                                colour=discord.Colour.gold())
                             i = 0
-                            for result in soup.find_all("div", class_="mod-card"):
+                            for result in soup.find_all("div", class_="flex-column"):
                                 if i <= 4:
-                                    title = result.find("h2", class_="mod-card-title").find("a")
+                                    title = result.find("h2", class_="mb0").find("a")
                                     if title.string.title() == modname.title():
                                         em = mod_embed(result)
                                         break
-                                    author = result.find("div", class_="mod-card-author").find("a").string
-                                    summary = markdownEx.sub(r"\\\1", result.find('div', class_='mod-card-summary').string)
+                                    author = result.find("a", class_="orange").string
+                                    summary = markdownEx.sub(r"\\\1", result.find("p", class_="pre-line").string)
                                     em.add_field(name=f"{title.string} (by {author})",
                                                  value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
                                     i += 1
