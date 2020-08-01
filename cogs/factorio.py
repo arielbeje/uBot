@@ -361,7 +361,7 @@ class FactorioCog(commands.Cog):
                                     i += 1
 
                         else:
-                            em = mod_embed(soup.find("div", class_="mod-card"))
+                            em = mod_embed(soup.find("div", class_="flex-column"))
 
                         await bufferMsg.edit(embed=em)
                 else:
