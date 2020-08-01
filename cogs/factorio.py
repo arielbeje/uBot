@@ -39,27 +39,30 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     """
     taglist = []
     fields = []
-    title = result.find("div", class_="").find("h2", class_="mb0").find("a")
-    summary = result.find("div", class_="panel-inset-lighter").find("p", class_="pre-line").string
+    headerAndSummaryDiv = result.find("div", class_="w100p")
+    infoCard = result.find("div", class_="mod-card-info")
+    footer = result.find("div", class_="panel-inset")
+
+    title = headerAndSummaryDiv.find("h2", class_="mb0").find("a")
+    summary = headerAndSummaryDiv.find("p", class_="pre-line").string
     em = discord.Embed(title=title.string,
                        url=f"https://mods.factorio.com{title['href'].replace(' ', '%20')}",
                        description=markdownEx.sub(r"\\\1", summary),
                        colour=discord.Colour.dark_green())
-    thumbnail = result.find("div", class_="mod-card-thumbnail")
-    if "no-picture" not in thumbnail.attrs["class"]:
-        em.set_thumbnail(url=thumbnail.find("a").find("img")["src"])
-    owner = result.find("div", class_="mod-card-info-container").find("div", class_="mod-card-author").find("a")
+    thumbnail = result.find("div", class_="mod-thumbnail").find("img")
+    if thumbnail is not None:
+        em.set_thumbnail(url=thumbnail["src"])
+    owner = headerAndSummaryDiv.find("div").find("a", class_="orange")
     fields.append({"name": "Owner", "value": f"[{owner.string}](https://mods.factorio.com{owner['href']})"})
-    for tag in result.find("div", class_="mod-card-footer").find("ul").find_all("li", class_="tag"):
-        tag = tag.find("span").find("a")
-        taglist.append(f"[{tag.string}](https://mods.factorio.com{tag['href']})")
-    gameVersions = result.find("div", class_="mod-card-info").find("span", title="Available for these Factorio versions")
-    downloads = result.find("div", class_="mod-card-info").find("span", title="Downloads")
-    createdAt = result.find("div", class_="mod-card-info").find("span", title="Last updated")
+    for tag in footer.find_all("a", class_="slot-button-inline"):
+        taglist.append(f"[{tag.string.strip()}](https://mods.factorio.com{tag['href']})")
+    gameVersions = infoCard.find("div", title="Available for these Factorio versions").contents[2].strip()
+    downloads = infoCard.find("div", title="Downloads").contents[2].strip()
+    createdAt = infoCard.find("div", title="Last updated").contents[2].strip()
     fields.extend([{"name": "Category", "value": "None" if len(taglist) == 0 else ", ".join(taglist)},
-                   {"name": "Game Version(s)", "value": gameVersions.find("div", class_="mod-card-info-tag-label").string},
-                   {"name": "Downloads", "value": downloads.find("div", class_="mod-card-info-tag-label").string},
-                   {"name": "Updated", "value": createdAt.find("div", class_="mod-card-info-tag-label").string}])
+                   {"name": "Game Version(s)", "value": gameVersions},
+                   {"name": "Downloads", "value": downloads},
+                   {"name": "Updated", "value": createdAt}])
     for field in fields:
         em.add_field(**field, inline=True)
     return em
