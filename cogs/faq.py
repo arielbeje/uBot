@@ -6,6 +6,7 @@ from discord.ext import commands
 from fuzzywuzzy import fuzz
 
 from utils import customchecks, sql
+from utils.punishmentshelper import lazily_fetch_member
 
 from typing import List
 
@@ -34,8 +35,9 @@ async def embed_faq(ctx: commands.Context, bot: commands.AutoShardedBot, query: 
     if not color:
         color = discord.Colour.gold()
     image = None if queryRow[3] is None else str(queryRow[3])
-    author = bot.get_user(int(queryRow[4]))
-    authorName = getattr(ctx.guild.get_member(author.id), "display_name", None)
+    author_id = int(queryRow[4])
+    author = bot.get_user(author_id) or await bot.fetch_user(author_id)
+    authorName = getattr(await lazily_fetch_member(ctx.guild, author.id), "display_name", None)
     if authorName is not None and author.avatar:
         authorPic = f"https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
     else:
