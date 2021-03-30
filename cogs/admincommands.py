@@ -377,28 +377,30 @@ class AdminCommands(commands.Cog):
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
     @commands.bot_has_permissions(manage_roles=True)
-    async def unmute(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
+    async def unmute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
         """
-        Unmutes a member. A reason can also be given.
+        Unmutes a user. A reason can also be given.
         The reason will be saved in the audit log.
         """
         guild = ctx.message.guild
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
-                                   str(guild.id), str(member.id))
+                                   str(guild.id), str(user.id))
         if len(prevmute) > 0:
             await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?",
-                              str(guild.id), str(member.id))
+                              str(guild.id), str(user.id))
             roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                       str(guild.id))
             if roleRow[0][0] is not None:
                 role = guild.get_role(int(roleRow[0][0]))
             else:
                 role = None
-            if role is not None:
+            mutedName = user.name
+            if role is not None and (member := await lazily_fetch_member(guild, user.id)) is not None:
+                mutedName = member.display_name
                 await member.remove_roles(role, reason=f"Unmuted by {ctx.message.author.display_name}")
                 await punishmentshelper.notify(member, ctx.message.author,
                                                title="Unmute", reason=reason)
-            em = discord.Embed(title=f"Successfully unmuted {member.display_name}",
+            em = discord.Embed(title=f"Successfully unmuted {mutedName}",
                                colour=discord.Colour.dark_green())
             await ctx.send(embed=em)
 
