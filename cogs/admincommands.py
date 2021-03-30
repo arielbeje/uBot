@@ -7,6 +7,7 @@ import discord
 from discord.ext import commands
 
 from utils import customchecks, sql, punishmentshelper
+from utils.punishmentshelper import lazily_fetch_member
 
 
 class AdminCommands(commands.Cog):
@@ -275,7 +276,7 @@ class AdminCommands(commands.Cog):
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
     @commands.bot_has_permissions(manage_roles=True)
-    async def mute(self, ctx: commands.Context, member: discord.Member, *, reason: str = None):
+    async def mute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
         guild = ctx.message.guild
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                   str(guild.id))
@@ -284,17 +285,22 @@ class AdminCommands(commands.Cog):
         else:
             role = None
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
-                                   str(guild.id), str(member.id))
+                                   str(guild.id), str(user.id))
         if len(prevmute) == 0:
             if role is not None:
                 await sql.execute("INSERT INTO mutes VALUES (?, ?, ?)",
-                                  str(guild.id), str(member.id), None)
-                await member.add_roles(role, reason=reason)
-                em = discord.Embed(title=f"Succesfully muted {member.display_name}",
+                                  str(guild.id), str(user.id), None)
+
+                mutedName = user.name
+                if (member := await lazily_fetch_member(guild, user.id)) is not None:
+                    mutedName = member.display_name
+                    await member.add_roles(role, reason=reason)
+                    await punishmentshelper.notify(member, ctx.message.author,
+                                                   title="Mute", reason=reason)
+
+                em = discord.Embed(title=f"Succesfully muted {mutedName}",
                                    colour=discord.Colour.dark_green())
                 await ctx.send(embed=em)
-                await punishmentshelper.notify(member, ctx.message.author,
-                                               title="Mute", reason=reason)
             else:
                 em = discord.Embed(title="Error",
                                    description="The set mute role for this server does not exist" +
