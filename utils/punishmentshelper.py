@@ -8,6 +8,10 @@ import discord
 from typing import Union
 
 
+async def lazily_fetch_member(guild: discord.Guild, user_id: int):
+    return guild.get_member(user_id) or await guild.fetch_member(user_id)
+
+
 async def ensure_unmute(server: discord.Guild, member_id: int, duration: int,
                         role: discord.Role, partialDuration: bool = False):
     """
@@ -16,7 +20,7 @@ async def ensure_unmute(server: discord.Guild, member_id: int, duration: int,
     """
     await asyncio.sleep(duration)
     reason = "Temporary mute " + (f"of {humanfriendly.format_timespan(duration)} " if not partialDuration else "") + "ended."
-    member = server.get_member(member_id)
+    member = await lazily_fetch_member(server, member_id)
     if member is not None:
         try:
             await member.remove_roles(role, reason=reason)
