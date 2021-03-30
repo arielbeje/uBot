@@ -9,7 +9,10 @@ from typing import Union
 
 
 async def lazily_fetch_member(guild: discord.Guild, user_id: int):
-    return guild.get_member(user_id) or await guild.fetch_member(user_id)
+    try:
+        return guild.get_member(user_id) or await guild.fetch_member(user_id)
+    except discord.errors.NotFound:
+        return None
 
 
 async def ensure_unmute(server: discord.Guild, member_id: int, duration: int,
