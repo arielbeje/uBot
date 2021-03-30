@@ -323,19 +323,19 @@ class AdminCommands(commands.Cog):
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
     @commands.bot_has_permissions(manage_roles=True)
-    async def tempmute(self, ctx: commands.Context, member: discord.Member, time: str, *, reason: str = None):
+    async def tempmute(self, ctx: commands.Context, user: discord.User, time: str, *, reason: str = None):
         """
-        Temporarily mutes a member for the given duration. A reason can also be given.
-        The reason will be saved in the audit log.
+        Temporarily mutes a user for the given duration. A reason can also be given.
+        If the user is present in the server, the reason will be saved in the audit log.
         """
         guild = ctx.message.guild
         delta = timeparse(time)
         until = pytz.utc.localize(datetime.datetime.utcnow() + datetime.timedelta(seconds=delta)).replace(microsecond=0)
         prevmute = await sql.fetch("SELECT until FROM mutes WHERE serverid=? AND userid=?",
-                                   str(guild.id), str(member.id))
+                                   str(guild.id), str(user.id))
         if len(prevmute) == 0:
             await sql.execute("INSERT INTO mutes VALUES (?, ?, ?)",
-                              str(guild.id), str(member.id), until)
+                              str(guild.id), str(user.id), until)
             roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                       str(guild.id))
             if roleRow[0][0] is not None:
@@ -343,15 +343,18 @@ class AdminCommands(commands.Cog):
             else:
                 role = None
             if role is not None:
-                await member.add_roles(role, reason=reason)
-                em = discord.Embed(title=f"Succesfully muted {member.display_name}",
+                mutedName = user.name
+                if (member := await lazily_fetch_member(guild, user.id)) is not None:
+                    mutedName = member.display_name
+                    await member.add_roles(role, reason=reason)
+                    await punishmentshelper.notify(member, ctx.message.author,
+                                                   title="Temporary mute", reason=reason,
+                                                   duration=delta, until=until)
+                    asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member.id, delta, role))
+                em = discord.Embed(title=f"Succesfully muted {mutedName}",
                                    description=f"Will be muted until {until.isoformat()}.",
                                    colour=discord.Colour.dark_green())
                 await ctx.send(embed=em)
-                await punishmentshelper.notify(member, ctx.message.author,
-                                               title="Temporary mute", reason=reason,
-                                               duration=delta, until=until)
-                asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, member.id, delta, role))
             else:
                 em = discord.Embed(title="Error",
                                    description="The set mute role for this server does not exist" +
