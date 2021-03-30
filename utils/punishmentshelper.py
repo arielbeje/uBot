@@ -60,5 +60,5 @@ async def notify(member: discord.Member, punisher: discord.Member, title: str,
     em.add_field(name="Punished/modified by", value=f"{punisher.display_name} - {punisher.mention}")
     try:
         await member.send(embed=em)
-    except discord.errors.Forbidden:
+    except (discord.errors.Forbidden, discord.errors.HTTPException):
         pass
