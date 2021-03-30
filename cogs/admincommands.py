@@ -402,7 +402,9 @@ class AdminCommands(commands.Cog):
                                                title="Unmute", reason=reason)
             em = discord.Embed(title=f"Successfully unmuted {mutedName}",
                                colour=discord.Colour.dark_green())
-            await ctx.send(embed=em)
+        else:
+            em = discord.Embed(title="User isn't muted", colour=discord.Color.red())
+        await ctx.send(embed=em)
 
     @commands.command()
     @customchecks.is_mod()
