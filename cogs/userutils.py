@@ -29,11 +29,9 @@ class UserUtils(commands.Cog):
         type(self).__name__ = "Utility Commands"
 
     @commands.command(name="userinfo")
-    async def user_info(self, ctx: commands.Context, user: discord.User = None):
-        """Returns information about the given user"""
-        if not user:
-            user = ctx.message.author
-        member = ctx.message.guild.get_member(user.id)
+    async def user_info(self, ctx: commands.Context, member: discord.Member = None):
+        """Returns information about the given member"""
+        member = member or ctx.author
         em = discord.Embed(colour=discord.Colour.gold())
         activityInfo = activity_info(member.activity) if member.activity else None
         inlineFields = [
@@ -46,7 +44,7 @@ class UserUtils(commands.Cog):
         ]
         for field in inlineFields:
             em.add_field(**field, inline=True)
-        avatar = user.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
+        avatar = member.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
         registeredAt = pytz.utc.localize(member.created_at)
         joinedAt = pytz.utc.localize(member.joined_at)
         em.add_field(name="Joined", value=f"{human(joinedAt, precision=4)} ({joinedAt.replace(microsecond=0).isoformat()})")
