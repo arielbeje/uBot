@@ -242,14 +242,13 @@ async def on_member_remove(member: discord.Member):
 
 
 @bot.event
-async def on_member_ban(guild: discord.Guild, member: discord.Member):
-    joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(member.guild.id))
+async def on_member_ban(guild: discord.Guild, user: discord.User):
+    joinLeaveRow = await sql.fetch("SELECT joinleavechannel FROM servers WHERE serverid=?", str(guild.id))
     if len(joinLeaveRow) > 0:
         joinLeaveID = joinLeaveRow[0][0]
         if joinLeaveID is not None:
             joinLeaveChannel = bot.get_channel(int(joinLeaveID))
-            await joinLeaveChannel.send(f"**Ban** - {member.name}, ID {member.id}.\n"
-                                        f"Joined at {member.joined_at.isoformat()}.")
+            await joinLeaveChannel.send(f"**Ban** - {user.name}, ID {user.id}.\n")
 
 
 if __name__ == "__main__":
