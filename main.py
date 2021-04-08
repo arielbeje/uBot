@@ -27,6 +27,13 @@ logging.basicConfig(handlers=[fh, ch],
                     level=logging.INFO)
 logger = logging.getLogger('root')
 
+intents = discord.Intents.none()
+intents.bans = True
+intents.guilds = True
+intents.members = True
+intents.messages = True
+intents.presences = True
+
 if "UBOT" not in os.environ:
     logger.critical("Couldn't find a token. Please enter one in the UBOT environment variable. "
                     "The bot will not run without it")
@@ -62,7 +69,7 @@ async def get_prefix(bot: commands.AutoShardedBot, message: discord.Message):
     return commands.when_mentioned_or(*prefixes)(bot, message) if prefixes else commands.when_mentioned(bot, message)
 
 
-bot = commands.AutoShardedBot(command_prefix=get_prefix)
+bot = commands.AutoShardedBot(command_prefix=get_prefix, intents=intents)
 
 
 @bot.event
