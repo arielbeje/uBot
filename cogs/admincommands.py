@@ -295,6 +295,10 @@ class AdminCommands(commands.Cog):
                 if (member := await lazily_fetch_member(guild, user.id)) is not None:
                     mutedName = member.display_name
                     await member.add_roles(role, reason=reason)
+                    try:
+                        await member.edit(voice_channel=None)
+                    except discord.errors.Forbidden:
+                        pass
                     await punishmentshelper.notify(member, ctx.message.author,
                                                    title="Mute", reason=reason)
 
@@ -347,6 +351,10 @@ class AdminCommands(commands.Cog):
                 if (member := await lazily_fetch_member(guild, user.id)) is not None:
                     mutedName = member.display_name
                     await member.add_roles(role, reason=reason)
+                    try:
+                        await member.edit(voice_channel=None)
+                    except discord.errors.Forbidden:
+                        pass
                     await punishmentshelper.notify(member, ctx.message.author,
                                                    title="Temporary mute", reason=reason,
                                                    duration=delta, until=until)
