@@ -139,7 +139,7 @@ async def on_ready():
                 await member.remove_roles(role, reason="Temporary mute ended.")
             await sql.execute("DELETE FROM mutes WHERE serverid=? AND userid=?", serverid, userid)
         else:
-            duration = (utcnow - until).total_seconds()
+            duration = (until - utcnow).total_seconds()
             asyncio.ensure_future(punishmentshelper.ensure_unmute(guild, int(userid), duration, role, partialDuration=True))
 
     unfinishedBans = await sql.fetch("SELECT * FROM bans")
@@ -158,7 +158,7 @@ async def on_ready():
             user = await guild.unban(user, reason="Temporary ban ended.")
             await sql.execute("DELETE FROM bans WHERE serverid=? AND userid=?", serverid, userid)
         else:
-            duration = (utcnow - until).total_seconds()
+            duration = (until - utcnow).total_seconds()
             asyncio.ensure_future(punishmentshelper.ensure_unban(guild, user, duration, partialDuration=True))
 
     logger.info(f"Logged in as: {bot.user.name} - {bot.user.id}")
