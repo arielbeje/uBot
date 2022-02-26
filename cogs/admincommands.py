@@ -276,7 +276,22 @@ class AdminCommands(commands.Cog):
     @customchecks.is_mod()
     @commands.has_permissions(manage_roles=True)
     @commands.bot_has_permissions(manage_roles=True)
-    async def mute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
+    async def mute(self, ctx: commands.Context, user: discord.User, *, rest: str = None):
+        if rest:
+            # Check if rest starts with a time definition
+            time = rest.split()[0]
+            try:
+                # timeparse returns None on invalid inputs, but due to bugs
+                # raises ValueError on a subset of invalid inputs (see issues in repo)
+                delta = timeparse(time)
+            except ValueError:
+                delta = None
+            if delta is not None:
+                reason = ' '.join(rest.split()[1:])
+                return await self.tempmute(ctx, user, time, reason=reason)
+
+        reason = rest
+
         guild = ctx.message.guild
         roleRow = await sql.fetch("SELECT muteroleid FROM servers WHERE serverid=?",
                                   str(guild.id))
