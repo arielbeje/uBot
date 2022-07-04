@@ -8,7 +8,7 @@ import tomd
 import discord
 from discord.ext import commands
 
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any
 
 BASE_API_URL = "https://lua-api.factorio.com/latest/"
 
@@ -31,6 +31,16 @@ async def get_soup(url: str) -> Tuple[int, bs4.BeautifulSoup]:
             status = resp.status
             r = await resp.text()
     return (status, bs4.BeautifulSoup(r, "html.parser"))
+
+async def get_json(url: str) -> Tuple[int, Any]:  # TODO not sure what the type of the JSON should be
+    """
+    Returns a list with the response code (as int) and a JSON object of the URL
+    """
+    async with aiohttp.ClientSession() as client:
+        async with client.get(url) as resp:
+            status = resp.status
+            r = await resp.json()
+    return (status, r)
 
 
 def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
@@ -227,89 +237,92 @@ def process_query(query: str) -> Union[Tuple[str, List[str]], Tuple[str, str]]:
         return ("event", query)
 
 
-def define_tr_to_str(tr: bs4.element.Tag) -> str:
-    for a in tr.find_all("a"):
-        a["href"] = BASE_API_URL + a["href"]
-    data = (tr.find("td", class_="header").string, tr.find("td", class_="description"))
-    contents = data[1].contents
-    if len(contents) > 0:
-        if len(contents) > 1 and "\n" not in contents[0]:
-            description = tomd.convert(f"<p>{''.join([str(item) for item in contents[:-1]])}</p>").strip()
-        else:
-            description = contents[0].split('\n')[0].strip()
-        return f"`{data[0]}` - {description}"
-    else:
-        return f"`{data[0]}`"
-
-
-def define_table_to_strs(table: bs4.element.Tag) -> List[str]:
-    trs = table.find_all("tr", class_="element")
-    return [define_tr_to_str(tr) for tr in trs]
-
-
-def class_tr_to_str(tr: bs4.element.Tag) -> str:
-    for a in tr.find_all("a"):
-        a["href"] = BASE_API_URL + a["href"]
-    data = (tr.find("td", class_="header"), tr.find("td", class_="description"))
-    nameSpan = data[0].find("span", class_="element-name")
-    if data[0].find("span", class_="attribute-type") is not None:
-        accessType = "param"
-        type_ = data[0].find("span", class_="param-type").text.strip()
-    else:
-        accessType = "func"
-    if accessType == "param":
-        attributeMode = data[0].find("span", class_="attribute-mode").text
-        header = f"`{nameSpan.text} :: {type_}` {attributeMode}"
-    else:
-        header = f"`{nameSpan.text}`"
-
-    contents = [item for item in data[1].contents if item != " "]
-    if len(contents) > 0:
-        if len(contents) > 1 and "\n" not in contents[0]:
-            description = tomd.convert(f"<p>{''.join([str(item) for item in contents[:-1]])}</p>").strip()
-        else:
-            description = contents[0].strip()
-        return f"{header} - {description}"
-    else:
-        return header
-
-
-def class_table_to_strs(table: bs4.element.Tag) -> List[str]:
-    return [class_tr_to_str(tr) for tr in table.find_all("tr")]
-
-
-def get_class_description(soup: bs4.BeautifulSoup, class_: str) -> str:
-    a = soup.select(f"tr > td.header > a[href=\"{class_}.html\"]")
-    if len(a) == 1:
-        descriptionTag = a[0].parent.parent.find("td", class_="description")
-        descriptionRaw = "".join([str(content) for content in descriptionTag.contents])
-        return tomd.convert(f"<p>{descriptionRaw}</p>").strip()
+async def find_api_member(json: Any, query: str, bufferMsg: Any) -> Any:  # TODO types?
+    for member in json:
+        if member["name"] == query:
+            return member
+    # If it gets to here, no matching member was found
+    em = discord.Embed(title="Error", description=f"Could not find {query} in API", colour=discord.Colour.red())
+    await bufferMsg.edit(embed=em)
     return None
 
 
-def get_event_description(div: bs4.element.Tag) -> str:
-    for a in div.find_all("a"):
-        a["href"] = BASE_API_URL + a["href"]
-    data = (div.select("div.element-content > p"), div.find("div", class_="detail-content"))
-    paragraphs = []
-    for p in data[0]:
-        contents = p.contents
-        if not (len(contents) == 1 and len(contents[0].strip()) == 0):
-            paragraphs.append(html.unescape(tomd.convert(str(p))))
-    return "\n".join([p.strip().replace("\n", "") for p in paragraphs])
+async def find_class_member(allClasses, childClass, memberName, bufferMsg) -> Tuple[Any, str]:  # TODO types?
+    relevantClasses = [childClass]
+    if "base_classes" in childClass:  # make sure parent classes are searched too
+        for baseClass in childClass["base_classes"]:
+            parentClass = await find_api_member(allClasses, baseClass, bufferMsg)  # always finds something
+            relevantClasses.append(parentClass)
+    for class_ in relevantClasses:
+        for category in {"methods", "attributes"}:  # operators not supported
+            member = await find_api_member(class_[category], memberName, bufferMsg)
+            if member is not None:
+                return member, category
 
 
-def get_event_contents(div: bs4.element.Tag) -> List[str]:
-    contains = div.select("div.detail-content > div")
-    props = []
-    for prop in contains:
-        text = prop.text.replace("  ", " ")
-        searchResult = propEx.search(text).groups()
-        if searchResult[2] is not None:
-            props.append(f"`{searchResult[0]}` - {searchResult[2]}")
-        else:
-            props.append(f"`{searchResult[0]}`")
-    return props
+async def guarded_embed(title: str, description: str, url: str, colour: Any, bufferMsg: Any) -> None:  # TODO types?
+    title = "Result too long to embed." if len(description) > 2048 else title
+    description = "" if len(description) > 2048 else description
+    em = discord.Embed(title=title, description=description, url=url, colour=colour)
+    await bufferMsg.edit(embed=em)
+
+
+def render_api_type(type_: Any) -> str:  # TODO types?
+    if type(type_) == str:
+        return type_
+    else:
+        complexType = type_["complex_type"]
+        if complexType == "variant":
+            inner_types = [render_api_type(inner) for inner in type_["options"]]
+            return " or ".join(inner_types)
+        elif complexType == "array":
+            return f"array[{render_api_type(type_['value'])}]"
+        elif complexType in {'dictionary', 'LuaCustomTable'}:
+            key, value = render_api_type(type_["key"]), render_api_type(type_["value"])
+            return f"{complexType}[{key} → {value}]"
+        elif complexType == "table":
+            return "table"
+        elif complexType == "function":
+            parameters = [render_api_type(param) for param in type_["parameters"]]
+            return f"function({', '.join(parameters)})"
+        elif complexType == "LuaLazyLoadedValue":
+            return str(type_["value"])
+
+
+def render_class_member(member: Any, category: str) -> str:  # TODO types?
+    if category == "methods":  # doesn't take variant and variadic parameters into account
+        params = ", ".join([param["name"] for param in member["parameters"]])
+        parameters = f"{{{params}}}" if member["takes_table"] else f"({params})"
+        rvalues = [render_api_type(rvalue["type"]) for rvalue in member["return_values"]]
+        return_values = f" → {', '.join(rvalues)}" if len(rvalues) > 0 else ""
+        return f"\n**{member['name']}**{parameters}{return_values}"
+    elif category == "attributes":
+        type = render_api_type(member["type"])
+        access = ""  # at least one of read or write will always be available
+        if member["read"]: access += "R"
+        if member["write"]: access += "W"
+        return f"\n**{member['name']}** :: {type} *[{access}]*"
+    else:
+        return ""  # no support for operators
+
+
+async def render_define(define: Any, subtypes: List[str], bufferMsg: Any) -> Union[str, None]:  # TODO types?
+    if len(subtypes) != 0:
+        subtype = await find_api_member(define["subkeys"], subtypes[0], bufferMsg)
+        if subtype is not None:  # go deeper if a subtype is requested
+            return await render_define(subtype, subtypes[1:], bufferMsg)
+    else:
+        description = f"{define['description']}\n" if define['description'] != "" else ""
+        if "subkeys" in define:
+            for subkey in define["subkeys"]:
+                description += f"\n**{subkey['name']}:**"
+                description += await render_define(subkey, [], bufferMsg) or ""
+                # TODO should be indented for visual clarity, but it seems to auto-strip leading whitespace
+        if "values" in define:
+            for value in define["values"]:
+                desc = f": {value['description']}" if value['description'] else ""
+                description += f"\n{value['name']}{desc}"
+        return description + "\n"
 
 
 class FactorioCog(commands.Cog):
@@ -444,118 +457,80 @@ class FactorioCog(commands.Cog):
                            description="This shouldn't take long.",
                            colour=discord.Colour.gold())
         bufferMsg = await ctx.send(embed=em)
+        if query in ["classes", "events", "concepts", "defines"]:
+            pagename = query.capitalize() if query in ["classes", "concepts"] else query
+            em = discord.Embed(title=query.capitalize(),
+                               url=f"{BASE_API_URL}{pagename}.html",
+                               colour=discord.Colour.gold())
+            await bufferMsg.edit(embed=em)
+            return
         processResult = process_query(query)
-        if processResult[0] == "define":
-            response = await get_soup(BASE_API_URL + "defines.html")
-            if response[0] == 200:
-                fullName = f"defines.{'.'.join(processResult[1])}"
-                tag = response[1].find(id=fullName)
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find `{query}` in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                tagType = str(tag).split(" ")[0][1:]  # For example, <div ....
-                if tagType == "div":
-                    contents = tag.find("div", class_="element-content").find("p").contents
-                    description = ""
-                    if len(contents) > 0:
-                        if len(contents) > 1 and "\n" not in contents[0]:
-                            for a in tag.find_all("a"):
-                                a["href"] = BASE_API_URL + a["href"]
-                            description = tomd.convert(f"<p>{''.join([str(item) for item in contents])}</p>").strip() + "\n"
-                        else:
-                            description = contents[0].split('\n')[0].strip() + "\n"
-                    tables = tag.find_all("table", class_="brief-members")
-                    for table in tables:
-                        data = define_table_to_strs(table)
-                        for tr in data:
-                            description += tr + "\n"
-                else:  # Since the tag can be only a div or a tr
-                    description = define_tr_to_str(tag)
-                if len(description) > 2048:
-                    em = discord.Embed(title="Result too long for embedding",
-                                       colour=discord.Colour.gold())
-                else:
-                    em = discord.Embed(title=fullName,
-                                       description=description,
-                                       colour=discord.Colour.gold())
-                em.url = f"{BASE_API_URL}defines.html#{fullName}"
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Could not reach lua-api.factorio.com.",
-                                   colour=discord.Colour.red())
-        elif processResult[0] == "class":
-            response = await get_soup(BASE_API_URL + "Classes.html")
-            if response[0] == 200:
-                tag = response[1].find("div", id=f"{processResult[1]}.brief")
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find `{query}` in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                table = tag.find("table", class_="brief-members")
-                data = class_table_to_strs(table)
-                description = get_class_description(response[1], processResult[1])
-                if description is not None:
-                    description += "\n"
-                else:
-                    description = ""
-                description += "\n".join(data)
-                if len(description) > 2048:
-                    em = discord.Embed(title="Result too long for embedding",
-                                       colour=discord.Colour.gold())
-                else:
-                    em = discord.Embed(title=query,
-                                       description=description,
-                                       colour=discord.Colour.gold())
-                em.url = f"{BASE_API_URL}{query}.html"
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Could not reach lua-api.factorio.com.",
-                                   colour=discord.Colour.red())
+        response = await get_json(BASE_API_URL + "runtime-api.json")
+        if response[0] != 200:
+            em = discord.Embed(title="Error",
+                               description="Could not reach lua-api.factorio.com.",
+                               colour=discord.Colour.red())
+            await bufferMsg.edit(embed=em)
+            return
+        json = response[1]
+        if processResult[0] == "class":  # could also be a concept
+            class_ = await find_api_member(json["classes"], query, bufferMsg)
+            if class_ is not None:
+                description = class_['description'] + "\n"
+                for category in ["methods", "attributes"]:
+                    for member in class_[category]:
+                        member_desc = f": {member['description'].split('.')[0]}." if member["description"] else ""
+                        description += render_class_member(member, category) + member_desc
+                url = f"{BASE_API_URL}{query}.html"
+                await guarded_embed(query, description, url, discord.Colour.gold(), bufferMsg)
+            else:  # if it's not a class, check if it's a concept
+                concept = await find_api_member(json["concepts"], query, bufferMsg)
+                if concept is not None:
+                    # With much more effort, one could add more detail to concepts
+                    url = f"{BASE_API_URL}Concepts.html#{query}"
+                    await guarded_embed(query, concept["description"], url, discord.Colour.gold(), bufferMsg)
         elif processResult[0] == "class+property":
-            response = await get_soup(BASE_API_URL + "Classes.html")
-            if response[0] == 200:
-                class_ = processResult[1][0]
-                property_ = processResult[1][1]
-                tag = response[1].find("a", href=f"{class_}.html#{class_}.{property_}")
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find `{query}` in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                tr = tag.parent.parent.parent
-                description = class_tr_to_str(tr)
-                em = discord.Embed(title=query,
-                                   description=description,
-                                   colour=discord.Colour.gold())
-                em.url = f"{BASE_API_URL}{class_}.html#{class_}.{property_}"
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Could not reach lua-api.factorio.com.",
-                                   colour=discord.Colour.red())
+            className = processResult[1][0]
+            class_ = await find_api_member(json["classes"], className, bufferMsg)
+            if class_ is not None:
+                memberName = processResult[1][1]
+                member, category = await find_class_member(json["classes"], class_, memberName, bufferMsg)
+                if member is not None:
+                    description = render_class_member(member, category)
+                    description += f"\n\n{member['description']}\n" if member['description'] != "" else ""
+                    if category == "methods":
+                        for parameter in member["parameters"]:
+                            type = render_api_type(parameter["type"])
+                            optional = " (optional)" if parameter["optional"] else ""
+                            paramDesc = f": {parameter['description']}" if parameter["description"] else ""
+                            description += f"\n**{parameter['name']}** :: {type}{optional}{paramDesc}"
+                    url = f"{BASE_API_URL}{className}.html#{className}.{memberName}"
+                    await guarded_embed(query, description, url, discord.Colour.gold(), bufferMsg)
+        elif processResult[0] == "define":
+            splitName = processResult[1]
+            define = await find_api_member(json["defines"], splitName[0], bufferMsg)
+            if define is not None:
+                description = await render_define(define, list(splitName[1:]), bufferMsg)
+                if description is not None:
+                    fullName = f"defines.{'.'.join(splitName)}"
+                    await guarded_embed(fullName, description, f"{BASE_API_URL}defines.html#{fullName}",
+                      discord.Colour.gold(), bufferMsg)
         else:  # event
-            response = await get_soup(BASE_API_URL + "events.html")
-            if response[0] == 200:
-                tag = response[1].find("div", id=query)
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find {query} in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
+            event = await find_api_member(json["events"], query, bufferMsg)
+            if event is not None:
                 em = discord.Embed(title=query,
-                                   description=get_event_description(tag),
+                                   description=event["description"],
                                    url=f"{BASE_API_URL}events.html#{query}",
                                    colour=discord.Colour.gold())
-                contents = get_event_contents(tag)
+                contents = []
+                for dataset in event["data"]:
+                    type = render_api_type(dataset["type"])
+                    optional = " (optional)" if dataset["optional"] else ""
+                    dataDesc = f": {dataset['description']}" if dataset["description"] else ""
+                    contents.append(f"**{dataset['name']}** :: {type}{optional}{dataDesc}")
                 if len(contents) > 0:
                     em.add_field(name="Contains", value="\n".join(contents), inline=False)
-        await bufferMsg.edit(embed=em)
+                await bufferMsg.edit(embed=em)
 
 
 def setup(bot):
