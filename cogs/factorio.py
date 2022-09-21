@@ -32,7 +32,7 @@ async def get_soup(url: str) -> Tuple[int, bs4.BeautifulSoup]:
             r = await resp.text()
     return (status, bs4.BeautifulSoup(r, "html.parser"))
 
-async def get_json(url: str) -> Tuple[int, Any]:  # TODO not sure what the type of the JSON should be
+async def get_json(url: str) -> Tuple[int, Any]:
     """
     Returns a list with the response code (as int) and a JSON object of the URL
     """
@@ -237,7 +237,7 @@ def process_query(query: str) -> Union[Tuple[str, List[str]], Tuple[str, str]]:
         return ("event", query)
 
 
-async def find_api_member(json: Any, query: str, bufferMsg: Any) -> Any:  # TODO types?
+async def find_api_member(json: Any, query: str, bufferMsg: Any) -> Any:
     for member in json:
         if member["name"] == query:
             return member
@@ -247,7 +247,7 @@ async def find_api_member(json: Any, query: str, bufferMsg: Any) -> Any:  # TODO
     return None
 
 
-async def find_class_member(allClasses, childClass, memberName, bufferMsg) -> Tuple[Any, str]:  # TODO types?
+async def find_class_member(allClasses, childClass, memberName, bufferMsg) -> Tuple[Any, str]:
     relevantClasses = [childClass]
     if "base_classes" in childClass:  # make sure parent classes are searched too
         for baseClass in childClass["base_classes"]:
@@ -258,38 +258,42 @@ async def find_class_member(allClasses, childClass, memberName, bufferMsg) -> Tu
             member = await find_api_member(class_[category], memberName, bufferMsg)
             if member is not None:
                 return member, category
+    return None, None
 
 
-async def guarded_embed(title: str, description: str, url: str, colour: Any, bufferMsg: Any) -> None:  # TODO types?
+async def guarded_embed(title: str, description: str, url: str, colour: Any, bufferMsg: Any) -> None:
     title = "Result too long to embed." if len(description) > 2048 else title
     description = "" if len(description) > 2048 else description
     em = discord.Embed(title=title, description=description, url=url, colour=colour)
     await bufferMsg.edit(embed=em)
 
 
-def render_api_type(type_: Any) -> str:  # TODO types?
+def render_api_type(type_: Any) -> str:
     if type(type_) == str:
         return type_
     else:
         complexType = type_["complex_type"]
-        if complexType == "variant":
-            inner_types = [render_api_type(inner) for inner in type_["options"]]
-            return " or ".join(inner_types)
+        if complexType == "union":
+            if type_["full_format"]:
+                return "union"
+            else:
+                inner_types = [render_api_type(inner) for inner in type_["options"]]
+                return " or ".join(inner_types)
+        elif complexType in {"table", "tuple"}:
+            return complexType
         elif complexType == "array":
             return f"array[{render_api_type(type_['value'])}]"
-        elif complexType in {'dictionary', 'LuaCustomTable'}:
+        elif complexType in {"dictionary", "LuaCustomTable"}:
             key, value = render_api_type(type_["key"]), render_api_type(type_["value"])
             return f"{complexType}[{key} → {value}]"
-        elif complexType == "table":
-            return "table"
         elif complexType == "function":
             parameters = [render_api_type(param) for param in type_["parameters"]]
             return f"function({', '.join(parameters)})"
-        elif complexType == "LuaLazyLoadedValue":
+        elif complexType in {"literal", "LuaLazyLoadedValue"}:
             return str(type_["value"])
 
 
-def render_class_member(member: Any, category: str) -> str:  # TODO types?
+def render_class_member(member: Any, category: str) -> str:
     if category == "methods":  # doesn't take variant and variadic parameters into account
         params = ", ".join([param["name"] for param in member["parameters"]])
         parameters = f"{{{params}}}" if member["takes_table"] else f"({params})"
@@ -298,15 +302,16 @@ def render_class_member(member: Any, category: str) -> str:  # TODO types?
         return f"\n**{member['name']}**{parameters}{return_values}"
     elif category == "attributes":
         type = render_api_type(member["type"])
+        optional = "?" if member["optional"] else ""
         access = ""  # at least one of read or write will always be available
         if member["read"]: access += "R"
         if member["write"]: access += "W"
-        return f"\n**{member['name']}** :: {type} *[{access}]*"
+        return f"\n**{member['name']}** :: {type}{optional} *[{access}]*"
     else:
         return ""  # no support for operators
 
 
-async def render_define(define: Any, subtypes: List[str], bufferMsg: Any) -> Union[str, None]:  # TODO types?
+async def render_define(define: Any, subtypes: List[str], bufferMsg: Any) -> Union[str, None]:
     if len(subtypes) != 0:
         subtype = await find_api_member(define["subkeys"], subtypes[0], bufferMsg)
         if subtype is not None:  # go deeper if a subtype is requested
@@ -487,8 +492,9 @@ class FactorioCog(commands.Cog):
                 concept = await find_api_member(json["concepts"], query, bufferMsg)
                 if concept is not None:
                     # With much more effort, one could add more detail to concepts
+                    description = render_api_type(concept["type"]) + "\n\n" + concept["description"]
                     url = f"{BASE_API_URL}Concepts.html#{query}"
-                    await guarded_embed(query, concept["description"], url, discord.Colour.gold(), bufferMsg)
+                    await guarded_embed(query, description, url, discord.Colour.gold(), bufferMsg)
         elif processResult[0] == "class+property":
             className = processResult[1][0]
             class_ = await find_api_member(json["classes"], className, bufferMsg)
@@ -501,7 +507,7 @@ class FactorioCog(commands.Cog):
                     if category == "methods":
                         for parameter in member["parameters"]:
                             type = render_api_type(parameter["type"])
-                            optional = " (optional)" if parameter["optional"] else ""
+                            optional = "?" if parameter["optional"] else ""
                             paramDesc = f": {parameter['description']}" if parameter["description"] else ""
                             description += f"\n**{parameter['name']}** :: {type}{optional}{paramDesc}"
                     url = f"{BASE_API_URL}{className}.html#{className}.{memberName}"
@@ -525,7 +531,7 @@ class FactorioCog(commands.Cog):
                 contents = []
                 for dataset in event["data"]:
                     type = render_api_type(dataset["type"])
-                    optional = " (optional)" if dataset["optional"] else ""
+                    optional = "?" if dataset["optional"] else ""
                     dataDesc = f": {dataset['description']}" if dataset["description"] else ""
                     contents.append(f"**{dataset['name']}** :: {type}{optional}{dataDesc}")
                 if len(contents) > 0:
