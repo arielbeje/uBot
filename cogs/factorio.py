@@ -59,7 +59,8 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
         taglist.append(f"[{tag.string.strip()}](https://mods.factorio.com{tag['href']})")
     gameVersions = infoCard.find("div", title="Available for these Factorio versions").contents[2].strip()
     downloads = infoCard.find("div", title="Downloads").contents[2].strip()
-    createdAt = infoCard.find("div", title="Last updated").contents[2].strip()
+    createdAtDiv = infoCard.find("div", title="Last updated")
+    createdAt = createdAtDiv.find("span").contents[0].strip()
     fields.extend([{"name": "Category", "value": "None" if len(taglist) == 0 else ", ".join(taglist)},
                    {"name": "Game Version(s)", "value": gameVersions},
                    {"name": "Downloads", "value": downloads},
@@ -67,18 +68,6 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     for field in fields:
         em.add_field(**field, inline=True)
     return em
-
-
-# def get_wiki_description(soup: bs4.BeautifulSoup) -> str:
-#     """
-#     Returns the first paragraph of a wiki page BeautifulSoup
-#     """
-#     if soup.select(".mw-parser-output > p"):
-#         pNum = 0
-#         if headerEx.search(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[0])):
-#             pNum = 1
-#         return html.unescape(tomd.convert(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[pNum]))).strip().replace("<br/>", "\n")
-#     return ""
 
 
 async def embed_fff(number: int) -> discord.Embed:
