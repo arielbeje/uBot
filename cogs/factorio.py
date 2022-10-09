@@ -182,7 +182,7 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                 paragraphs = str.split(await get_wiki_page_safe(client, WIKI_API_URL, title), "\n")
                 intropar = [par for par in paragraphs if "'''" in par][0]
                 formatted = linkEx.sub(
-                    lambda m: f"[{m[2] or m[1]}](https://{baseURL})/{m[1]})",
+                    lambda m: f"[{m[2] or m[1]}](https://{baseURL}/{m[1]})",
                     intropar)
                 formatted = formatted.replace("'", "")
                 em = discord.Embed(title=title,
