@@ -211,6 +211,7 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                     em = discord.Embed(title="Error",
                                        description=f"Could not find English results for \"{searchterm.title()}\" in wiki.",
                                        color=discord.Colour.red())
+                await bufferMsg.edit(embed=await wiki_embed(url))
 
 def is_camel_case(query: str) -> bool:
     return query != query.lower() and query != query.upper() and "_" not in query
