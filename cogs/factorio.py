@@ -11,10 +11,11 @@ from discord.ext import commands
 from typing import List, Tuple, Union
 
 BASE_API_URL = "https://lua-api.factorio.com/latest/"
+WIKI_API_URL = "https://wiki.factorio.com/api.php"
 
 headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
 referEx = re.compile(r".*? may refer to\:")
-linkEx = re.compile(r"\((\/\S*)\)")
+linkEx = re.compile(r"\[\[(.*?)(?:\|(.*?))?\]\]", re.X)
 fontEx = re.compile(r"<h\d>(.*?)(<font.*>(.*?)</font>)?</h\d>")
 langEx = re.compile(r"/(cs|de|es|fr|it|ja|nl|pl|pt-br|ru|sv|uk|zh|tr|ko|ms|da|hu|vi|pt-pt)$")
 fffEx = re.compile(r"Friday Facts #(\d*)")
@@ -58,7 +59,8 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
         taglist.append(f"[{tag.string.strip()}](https://mods.factorio.com{tag['href']})")
     gameVersions = infoCard.find("div", title="Available for these Factorio versions").contents[2].strip()
     downloads = infoCard.find("div", title="Downloads").contents[2].strip()
-    createdAt = infoCard.find("div", title="Last updated").contents[2].strip()
+    createdAtDiv = infoCard.find("div", title="Last updated")
+    createdAt = createdAtDiv.find("span").contents[0].strip()
     fields.extend([{"name": "Category", "value": "None" if len(taglist) == 0 else ", ".join(taglist)},
                    {"name": "Game Version(s)", "value": gameVersions},
                    {"name": "Downloads", "value": downloads},
@@ -66,18 +68,6 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     for field in fields:
         em.add_field(**field, inline=True)
     return em
-
-
-def get_wiki_description(soup: bs4.BeautifulSoup) -> str:
-    """
-    Returns the first paragraph of a wiki page BeautifulSoup
-    """
-    if soup.select(".mw-parser-output > p"):
-        pNum = 0
-        if headerEx.search(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[0])):
-            pNum = 1
-        return html.unescape(tomd.convert(str(soup.select(".mw-body-content > #mw-content-text > .mw-parser-output > p")[pNum]))).strip().replace("<br/>", "\n")
-    return ""
 
 
 async def embed_fff(number: int) -> discord.Embed:
@@ -128,83 +118,100 @@ async def embed_fff(number: int) -> discord.Embed:
                            colour=discord.Colour.red())
     return em
 
+async def get_wiki_page_safe(client, api_url, title):
+    async with client.get(api_url, params={
+        "action": "parse",
+        "format": "json",
+        "action": "query",
+        "titles": title,
+        "prop": "revisions",
+        "rvprop": "content"
+    }) as page_info:
+        pagejson = await page_info.json()
+        page = pagejson["query"]["pages"]
+        if "revisions" in list(page.values())[0]:
+            revisions = list(page.values())[0]["revisions"][0]
+            title = list(page.values())[0]["title"]
+            content = list(revisions.values())[2]
+            return content
+        return ""
 
-async def wiki_embed(url: str) -> discord.Embed:
-    """
-    Returns a discord.Embed object from a wiki URL
-    """
-    soup = (await get_soup(url))[1]
-    description = get_wiki_description(soup)
-    baseURL = "wiki.factorio.com" if not url.startswith('stable.') else "stable.wiki.factorio.com"
-    templateURL = r"(https://stable.wiki.factorio.com\1)" if url.startswith('stable.') else r"(https://wiki.factorio.com\1)"
-    if "may refer to:" in description:
-        title = soup.find("h1", id="firstHeading").get_text()
-        em = discord.Embed(title="Multiple pages share the title or description of " +
-                                 "\"{}\"".format(title),
-                           url = f"https://{baseURL}/{title}",
-                           colour=discord.Colour.red())
-        for item in soup.select(".mw-parser-output > ul")[0].find_all("li"):
-            item = item.find("a")
-            itemLink = item["href"] if not item["href"].endswith(")") else item["href"].replace(")", "\\)")
-            em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{itemLink})", inline=True)
-    else:
-        em = discord.Embed(title=soup.find("h1", id="firstHeading").get_text(),
-                           description=linkEx.sub(templateURL, description),
-                           url=url,
-                           colour=discord.Colour.dark_green())
-        if soup.find("div", class_="factorio-icon"):
-            em.set_thumbnail(url=f"https://{baseURL}{soup.find('div', class_='factorio-icon').find('img')['src']}")
-    return em
-
+async def search_wiki_page(client, api_url, title):
+    async with client.get(api_url, params={
+        "action": "query",
+        "format": "json",
+        "list": "search",
+        "srsearch": title,
+        "srnamespace": "0|3000"
+    }) as page_info:
+        pagejson = await page_info.json()
+        totalhits = pagejson["query"]["searchinfo"]["totalhits"]
+        results = pagejson["query"]["search"]
+        return totalhits, results
 
 async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = False):
     """
     Sends a message according to parameters given
     """
+    #Error when no search term is given
     if not searchterm:
         em = discord.Embed(title="Error",
                            description="To use this command, you have to enter a term to search for.",
                            colour=discord.Colour.red())
         await ctx.send(embed=em)
         return
-    baseURL = "wiki.factorio.com" if not stable else "stable.wiki.factorio.com"
+    baseURL = "wiki.factorio.com"
+
+    #Buffer message
     em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in {baseURL}...",
                        description="This shouldn't take long.",
                        colour=discord.Colour.gold())
     bufferMsg = await ctx.send(embed=em)
     async with ctx.channel.typing():
-        url = f"https://{baseURL}/index.php?search={searchterm.replace(' ', '%20')}"
-        soup = (await get_soup(url))[1]
-        if soup.find("p", class_="mw-search-nonefound"):
-            em = discord.Embed(title="Error",
-                               description=f"Could not find \"{searchterm.title()}\" in {'' if not stable else 'stable '}wiki.",
-                               colour=discord.Colour.red())
-            await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
-        else:
-            if soup.find_all("ul", class_="mw-search-results"):
+        async with aiohttp.ClientSession() as client:
+            totalhits, results = await search_wiki_page(client, WIKI_API_URL, searchterm)
+            if totalhits == 0:
+                em = discord.Embed(title="Error",
+                    description=f"Could not find \"{searchterm.title()}\" in wiki.",
+                    colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+
+            elif results[0]["title"].lower() == searchterm.lower():
+                title = results[0]["title"]
+                url = f"https://{baseURL}/" + title.replace(" ", "_")
+                paragraphs = str.split(await get_wiki_page_safe(client, WIKI_API_URL, title), "\n")
+                intropar = [par for par in paragraphs if "'''" in par][0]
+                formatted = linkEx.sub(
+                    lambda m: f"[{m[2] or m[1]}](https://{baseURL}/{m[1]})",
+                    intropar)
+                formatted = formatted.replace("'", "")
+                em = discord.Embed(title=title,
+                    url=url,
+                    description=formatted,
+                    color=discord.Colour.green())
+                if "Infobox" in paragraphs[0]:
+                    image_url = f"https://{baseURL}/images/{title.replace(' ', '_')}.png"
+                    em.set_thumbnail(url=image_url)
+                await bufferMsg.edit(embed=em)
+            else: 
                 engResults = []
-                em = discord.Embed(title=f"Factorio {'' if not stable else 'Stable '}Wiki",
-                                   url=url,
-                                   colour=discord.Colour.gold())
-                for item in soup.find_all("ul", class_="mw-search-results")[0].find_all("li"):
-                    item = item.find_next("div", class_="mw-search-result-heading").find("a")
-                    if langEx.search(item["title"]) is None:
-                        engResults.append(item)
-                if len(engResults) == 1:
-                    item = engResults[0]
-                    await bufferMsg.edit(embed=await wiki_embed(f"https://{baseURL}{item['href']}"))
-                elif len(engResults) > 1:
-                    for item in engResults:
-                        em.add_field(name=item["title"], value=f"[Read More](https://{baseURL}{item['href']})", inline=True)
+                for result in results:
+                    if langEx.search(result["title"]) is None:
+                        engResults.append(result)
+                if engResults != []:
+                    em = discord.Embed(title="Factorio Wiki",
+                                       url=f"https://{baseURL}/index.php?search={searchterm}",
+                                       color=discord.Colour.gold())
+                    for result in engResults:
+                        url = f"https://{baseURL}/{result['title'].replace(' ', '_')}"
+                        em.add_field(name = result["title"], value = f"[Read More]({url})")
                     await bufferMsg.edit(embed=em)
+
                 else:
                     em = discord.Embed(title="Error",
-                                       description=f"Could not find English results for \"{searchterm.title()}\" in {'' if not stable else 'stable '}wiki.",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
-            else:
-                await bufferMsg.edit(embed=await wiki_embed(url))
-
+                                       description=f"Could not find English results for \"{searchterm.title()}\" in wiki.",
+                                       color=discord.Colour.red())
+                    await bufferMsg.edit(embed=em)
 
 def is_camel_case(query: str) -> bool:
     return query != query.lower() and query != query.upper() and "_" not in query
@@ -376,13 +383,6 @@ class FactorioCog(commands.Cog):
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
         await process_wiki(ctx, searchterm)
-
-    @commands.command()
-    async def stablewiki(self, ctx: commands.Context, *, searchterm: str = None):
-        """
-        Searches for a term in the [official Stable Factorio wiki](https://stable.wiki.factorio.com/).
-        """
-        await process_wiki(ctx, searchterm, stable=True)
 
     @commands.command()
     async def fff(self, ctx: commands.Context, number: str = None):
