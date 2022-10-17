@@ -177,41 +177,48 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                 await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
 
             elif results[0]["title"].lower() == searchterm.lower():
-                title = results[0]["title"]
-                url = f"https://{baseURL}/" + title.replace(" ", "_")
-                paragraphs = str.split(await get_wiki_page_safe(client, WIKI_API_URL, title), "\n")
-                intropar = [par for par in paragraphs if "'''" in par][0]
-                formatted = linkEx.sub(
-                    lambda m: f"[{m[2] or m[1]}](https://{baseURL}/{m[1]})",
-                    intropar)
-                formatted = formatted.replace("'", "")
-                em = discord.Embed(title=title,
-                    url=url,
-                    description=formatted,
-                    color=discord.Colour.green())
-                if "Infobox" in paragraphs[0]:
-                    image_url = f"https://{baseURL}/images/{title.replace(' ', '_')}.png"
-                    em.set_thumbnail(url=image_url)
-                await bufferMsg.edit(embed=em)
+                await wiki_page_embed(baseURL, bufferMsg, client, results[0])
             else: 
                 engResults = []
                 for result in results:
                     if langEx.search(result["title"]) is None:
                         engResults.append(result)
                 if engResults != []:
-                    em = discord.Embed(title="Factorio Wiki",
-                                       url=f"https://{baseURL}/index.php?search={searchterm}",
-                                       color=discord.Colour.gold())
-                    for result in engResults:
-                        url = f"https://{baseURL}/{result['title'].replace(' ', '_')}"
-                        em.add_field(name = result["title"], value = f"[Read More]({url})")
-                    await bufferMsg.edit(embed=em)
+                    if len(engResults) == 1:
+                        await wiki_page_embed(baseURL, bufferMsg, client, engResults[0])
+                    else:
+                        em = discord.Embed(title="Factorio Wiki",
+                                        url=f"https://{baseURL}/index.php?search={searchterm}".replace(' ', '_'),
+                                        color=discord.Colour.gold())
+                        for result in engResults:
+                            url = f"https://{baseURL}/{result['title'].replace(' ', '_')}"
+                            em.add_field(name = result["title"], value = f"[Read More]({url})")
+                        await bufferMsg.edit(embed=em)
 
                 else:
                     em = discord.Embed(title="Error",
                                        description=f"Could not find English results for \"{searchterm.title()}\" in wiki.",
                                        color=discord.Colour.red())
                     await bufferMsg.edit(embed=em)
+
+async def wiki_page_embed(baseURL, bufferMsg, client, result):
+    title = result["title"]
+    url = f"https://{baseURL}/" + title.replace(" ", "_")
+    paragraphs = str.split(await get_wiki_page_safe(client, WIKI_API_URL, title), "\n")
+    try: intropar = [par for par in paragraphs if par != '' and par[0] != "{" and par[0] != "<"][0]
+    except IndexError: intropar = paragraphs[1]
+    formatted = linkEx.sub(
+                    lambda m: f"[{m[2] or m[1]}](https://{baseURL}/{m[1].replace(' ', '_')})",
+                    intropar)
+    formatted = formatted.replace("'", "")
+    em = discord.Embed(title=title,
+                    url=url,
+                    description=formatted,
+                    color=discord.Colour.green())
+    if "Infobox" in paragraphs[0]:
+        image_url = f"https://{baseURL}/images/{title.replace(' ', '_')}.png"
+        em.set_thumbnail(url=image_url)
+    await bufferMsg.edit(embed=em)
 
 def is_camel_case(query: str) -> bool:
     return query != query.lower() and query != query.upper() and "_" not in query
