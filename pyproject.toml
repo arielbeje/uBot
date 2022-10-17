@@ -24,6 +24,7 @@ python-Levenshtein = "^0.12.0"
 pytimeparse = "^1.1"
 pytz = "^2018.9"
 tomd = "^0.1.3"
+markdownify = "^0.11.6"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.9.0"
