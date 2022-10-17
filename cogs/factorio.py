@@ -1,6 +1,7 @@
 import aiohttp
 import bs4
 import feedparser
+import markdownify
 import html
 import re
 import tomd
@@ -22,6 +23,26 @@ langEx = re.compile(r"/(cs|de|es|fr|it|ja|nl|pl|pt-br|ru|sv|uk|zh|tr|ko|ms|da|hu
 fffEx = re.compile(r"Friday Facts #(\d*)")
 propEx = re.compile(r"^(\w+ :: [^:]+)(: (.+))?$")
 markdownEx = re.compile(r"([~*_`])")
+
+
+# TODO: Find a better name for this class
+class BaseUrlNoTitleLinksMarkdownCoverter(markdownify.MarkdownConverter):
+    def convert_a(self, el, text, _convert_as_inline):
+        """
+        A special link converter:
+        - Adds no title (Discord doesn't support markdown link titles)
+        - Prefixes all `href`s with `options.base_url`
+        """
+
+        prefix, suffix, text = markdownify.chomp(text)
+        if not text:
+            return ""
+        href = f"{self.options['base_url']}/{el.get('href')}"
+        if (self.options["autolinks"]
+                and text.replace("\\_", "_") == href):
+            # Shortcut syntax
+            return f"<{href}>"
+        return f"{prefix}[{text}]({href}){suffix}" if href else text
 
 
 async def get_soup(url: str) -> Tuple[int, bs4.BeautifulSoup]:
@@ -119,23 +140,20 @@ async def embed_fff(number: int) -> discord.Embed:
                            colour=discord.Colour.red())
     return em
 
-async def get_wiki_page_safe(client, title):
+async def get_wiki_page_summary_markdown(client, title):
     async with client.get(WIKI_API_URL, params={
         "action": "parse",
         "format": "json",
         "action": "query",
-        "titles": title,
-        "prop": "revisions",
-        "rvprop": "content"
+        "page": title,
+        "prop": "text",
+        "section": "0",
     }) as page_info:
-        pagejson = await page_info.json()
-        page = pagejson["query"]["pages"]
-        if "revisions" in list(page.values())[0]:
-            revisions = list(page.values())[0]["revisions"][0]
-            title = list(page.values())[0]["title"]
-            content = list(revisions.values())[2]
-            return content
-        return ""
+        html_text = (await page_info.json())["parse"]["text"]
+        # Convert only links to long-form versions (`[text](link)`), keeping the text around them
+        markdown_converter = BaseUrlNoTitleLinksMarkdownCoverter(
+            convert=["a"], autolinks=False, base_url=WIKI_BASE_URL)
+        return markdown_converter.convert(html_text)
 
 async def search_wiki_page(client, title):
     async with client.get(WIKI_API_URL, params={
@@ -178,22 +196,18 @@ async def process_wiki(ctx: commands.Context, searchterm: str):
 
             elif results[0]["title"].lower() == searchterm.lower():
                 title = results[0]["title"]
-                url = f"{WIKI_BASE_URL}/{title.replace(' ', '_')}"
-                paragraphs = str.split(await get_wiki_page_safe(client, title), "\n")
-                intropar = [par for par in paragraphs if "'''" in par][0]
-                formatted = linkEx.sub(
-                    lambda m: f"[{m[2] or m[1]}]({WIKI_BASE_URL}/{m[1]})",
-                    intropar)
-                formatted = formatted.replace("'", "")
+                underscore_spaced_title = title.replace(" ", "_")
+                url = f"{WIKI_BASE_URL}/{underscore_spaced_title}"
+                summary = await get_wiki_page_summary_markdown(client, title)
                 em = discord.Embed(title=title,
                     url=url,
-                    description=formatted,
+                    description=summary.strip(),
                     color=discord.Colour.green())
-                if "Infobox" in paragraphs[0]:
-                    image_url = f"{WIKI_BASE_URL}/images/{title.replace(' ', '_')}.png"
-                    em.set_thumbnail(url=image_url)
+                # Image URL might return 404 - but Discord will handle it
+                image_url = f"{WIKI_BASE_URL}/images/{underscore_spaced_title}.png"
+                em.set_thumbnail(url=image_url)
                 await bufferMsg.edit(embed=em)
-            else: 
+            else:
                 engResults = []
                 for result in results:
                     if langEx.search(result["title"]) is None:
