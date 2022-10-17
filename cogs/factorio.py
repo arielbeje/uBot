@@ -11,7 +11,8 @@ from discord.ext import commands
 from typing import List, Tuple, Union
 
 BASE_API_URL = "https://lua-api.factorio.com/latest/"
-WIKI_API_URL = "https://wiki.factorio.com/api.php"
+WIKI_BASE_URL = "https://wiki.factorio.com"
+WIKI_API_URL = f"{WIKI_BASE_URL}/api.php"
 
 headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
 referEx = re.compile(r".*? may refer to\:")
@@ -118,8 +119,8 @@ async def embed_fff(number: int) -> discord.Embed:
                            colour=discord.Colour.red())
     return em
 
-async def get_wiki_page_safe(client, api_url, title):
-    async with client.get(api_url, params={
+async def get_wiki_page_safe(client, title):
+    async with client.get(WIKI_API_URL, params={
         "action": "parse",
         "format": "json",
         "action": "query",
@@ -136,8 +137,8 @@ async def get_wiki_page_safe(client, api_url, title):
             return content
         return ""
 
-async def search_wiki_page(client, api_url, title):
-    async with client.get(api_url, params={
+async def search_wiki_page(client, title):
+    async with client.get(WIKI_API_URL, params={
         "action": "query",
         "format": "json",
         "list": "search",
@@ -149,7 +150,7 @@ async def search_wiki_page(client, api_url, title):
         results = pagejson["query"]["search"]
         return totalhits, results
 
-async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = False):
+async def process_wiki(ctx: commands.Context, searchterm: str):
     """
     Sends a message according to parameters given
     """
@@ -160,16 +161,15 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                            colour=discord.Colour.red())
         await ctx.send(embed=em)
         return
-    baseURL = "wiki.factorio.com"
 
     #Buffer message
-    em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in {baseURL}...",
+    em = discord.Embed(title=f"Searching for \"{searchterm.title()}\" in {WIKI_BASE_URL}...",
                        description="This shouldn't take long.",
                        colour=discord.Colour.gold())
     bufferMsg = await ctx.send(embed=em)
     async with ctx.channel.typing():
         async with aiohttp.ClientSession() as client:
-            totalhits, results = await search_wiki_page(client, WIKI_API_URL, searchterm)
+            totalhits, results = await search_wiki_page(client, searchterm)
             if totalhits == 0:
                 em = discord.Embed(title="Error",
                     description=f"Could not find \"{searchterm.title()}\" in wiki.",
@@ -178,11 +178,11 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
 
             elif results[0]["title"].lower() == searchterm.lower():
                 title = results[0]["title"]
-                url = f"https://{baseURL}/" + title.replace(" ", "_")
-                paragraphs = str.split(await get_wiki_page_safe(client, WIKI_API_URL, title), "\n")
+                url = f"{WIKI_BASE_URL}/{title.replace(' ', '_')}"
+                paragraphs = str.split(await get_wiki_page_safe(client, title), "\n")
                 intropar = [par for par in paragraphs if "'''" in par][0]
                 formatted = linkEx.sub(
-                    lambda m: f"[{m[2] or m[1]}](https://{baseURL}/{m[1]})",
+                    lambda m: f"[{m[2] or m[1]}]({WIKI_BASE_URL}/{m[1]})",
                     intropar)
                 formatted = formatted.replace("'", "")
                 em = discord.Embed(title=title,
@@ -190,7 +190,7 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                     description=formatted,
                     color=discord.Colour.green())
                 if "Infobox" in paragraphs[0]:
-                    image_url = f"https://{baseURL}/images/{title.replace(' ', '_')}.png"
+                    image_url = f"{WIKI_BASE_URL}/images/{title.replace(' ', '_')}.png"
                     em.set_thumbnail(url=image_url)
                 await bufferMsg.edit(embed=em)
             else: 
@@ -200,10 +200,10 @@ async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = Fa
                         engResults.append(result)
                 if engResults != []:
                     em = discord.Embed(title="Factorio Wiki",
-                                       url=f"https://{baseURL}/index.php?search={searchterm}",
+                                       url=f"{WIKI_BASE_URL}/index.php?search={searchterm}",
                                        color=discord.Colour.gold())
                     for result in engResults:
-                        url = f"https://{baseURL}/{result['title'].replace(' ', '_')}"
+                        url = f"{WIKI_BASE_URL}/{result['title'].replace(' ', '_')}"
                         em.add_field(name = result["title"], value = f"[Read More]({url})")
                     await bufferMsg.edit(embed=em)
 
