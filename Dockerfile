@@ -3,6 +3,8 @@ FROM python:3.9
 WORKDIR /code
 COPY . .
 
-RUN pip install .
+# Installing with poetry to utilize poetry.lock
+RUN pip install poetry
+RUN poetry install
 
 ENTRYPOINT python main.py
