@@ -7,4 +7,4 @@ COPY . .
 RUN pip install poetry
 RUN poetry install
 
-ENTRYPOINT python main.py
+ENTRYPOINT poetry run python main.py
