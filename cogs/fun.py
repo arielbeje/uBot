@@ -160,5 +160,5 @@ class FunCog(commands.Cog):
         await send_reaction_image(ctx, "smug")
 
 
-def setup(bot):
-    bot.add_cog(FunCog(bot))
+async def setup(bot):
+    await bot.add_cog(FunCog(bot))
