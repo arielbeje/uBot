@@ -32,6 +32,7 @@ intents.bans = True
 intents.guilds = True
 intents.members = True
 intents.messages = True
+intents.message_content = True
 intents.presences = True
 
 if "UBOT" not in os.environ:
