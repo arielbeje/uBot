@@ -565,5 +565,5 @@ class FactorioCog(commands.Cog):
         await bufferMsg.edit(embed=em)
 
 
-def setup(bot):
-    bot.add_cog(FactorioCog(bot))
+async def setup(bot):
+    await bot.add_cog(FactorioCog(bot))

@@ -146,9 +146,9 @@ async def on_ready():
     for serverid, userid, until in unfinishedBans:
         until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S%z")
         guild = bot.get_guild(int(serverid))
-        guildBans = await guild.bans()
+        guildBans = guild.bans()
         userid = int(userid)
-        for _, user in guildBans:
+        async for _, user in guildBans:
             if user.id == userid:
                 break
         else:
@@ -184,7 +184,7 @@ negativeModEx = re.compile(r"\`[\S\s]*?\>\>(.*?)\<\<[\S\s]*?\`")
 
 @bot.event
 async def on_message(message: discord.Message):
-    if not isinstance(message.channel, discord.abc.GuildChannel):
+    if not isinstance(message.channel, discord.abc.GuildChannel) and not isinstance(message.channel, discord.Thread) and not isinstance(message.channel, discord.ForumChannel):
         return
     msg = message.content
     comment = await sql.fetch("SELECT comment FROM servers WHERE serverid=?", str(message.guild.id))
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     for cog in coglist:
         logger.debug(f"Loading {cog}")
         try:
-            bot.load_extension(cog)
+            asyncio.get_event_loop().run_until_complete(bot.load_extension(cog))
             logger.debug(f"Loaded {cog} successfully")
         except Exception:
             logger.exception(f"Failed to load cog: {cog}")
@@ -276,4 +276,4 @@ if __name__ == "__main__":
         logger.warning("Error during cog loading")
     else:
         logger.info("Successfully loaded all cogs")
-    bot.run(os.environ["UBOT"], bot=True, reconnect=True)
+    bot.run(os.environ["UBOT"], reconnect=True)

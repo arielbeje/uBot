@@ -44,7 +44,7 @@ class UserUtils(commands.Cog):
         ]
         for field in inlineFields:
             em.add_field(**field, inline=True)
-        avatar = member.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
+        avatar = member.avatar_url_as(size=64)
         registeredAt = pytz.utc.localize(member.created_at)
         joinedAt = pytz.utc.localize(member.joined_at)
         em.add_field(name="Joined", value=f"{human(joinedAt, precision=4)} ({joinedAt.replace(microsecond=0).isoformat()})")
@@ -65,5 +65,5 @@ class UserUtils(commands.Cog):
         await ctx.send(embed=em)
 
 
-def setup(bot):
-    bot.add_cog(UserUtils(bot))
+async def setup(bot):
+    await bot.add_cog(UserUtils(bot))
