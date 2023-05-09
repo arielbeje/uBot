@@ -36,20 +36,11 @@ async def embed_faq(ctx: commands.Context, bot: commands.AutoShardedBot, query: 
     if not color:
         color = discord.Colour.gold()
     image = None if queryRow[3] is None else str(queryRow[3])
-    author_id = int(queryRow[4])
-    author = bot.get_user(author_id) or await bot.fetch_user(author_id)
-    authorName = getattr(await lazily_fetch_member(ctx.guild, author.id), "display_name", None)
-    if authorName is not None and author.avatar:
-        authorPic = f"https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
-    else:
-        authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
     em = discord.Embed(title=title,
                        description="" if queryRow[2] is None else str(queryRow[2]),
-                       timestamp=datetime.datetime.strptime(queryRow[5], "%Y-%m-%d %H:%M:%S.%f%z"),
                        colour=color)
     if image:
         em.set_image(url=image)
-    em.set_author(name=authorName or "Unknown", icon_url=authorPic)
     return em
 
 
