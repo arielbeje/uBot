@@ -28,7 +28,7 @@ class UserUtils(commands.Cog):
         self.bot = bot
         type(self).__name__ = "Utility Commands"
 
-    @commands.command(name="userinfo")
+    @commands.hybrid_command(name="userinfo")
     async def user_info(self, ctx: commands.Context, member: discord.Member = None):
         """Returns information about the given member"""
         member = member or ctx.author
@@ -54,7 +54,7 @@ class UserUtils(commands.Cog):
         em.set_footer(text=f"Created: {human(registeredAt, precision=4)} ({registeredAt.replace(microsecond=0).isoformat()})")
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     async def info(self, ctx: commands.Context):
         """Shows info about the bot"""
         em = discord.Embed(title="uBot",
