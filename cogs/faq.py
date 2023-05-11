@@ -4,6 +4,7 @@ import pytz
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.ext import tasks
 from fuzzywuzzy import fuzz
 
 from utils import customchecks, sql
@@ -105,7 +106,16 @@ class FAQCog(commands.Cog):
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
+        # self.update_faq_cache.start()
         type(self).__name__ = "Frequently Asked Questions"
+
+    # @tasks.loop(minutes=60)
+    # async def update_faq_cache(self):
+    #     id = 1105928546318299156
+    #     self.tags = [result[0] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=? ORDER BY title", str(id))]
+    #     print(self.tags)
+
+
 
     @commands.hybrid_group(name="faq", aliases=["tag", "tags", "faw", "FAQ"], with_app_command=True)
     async def faq_command(self, ctx: commands.Context, *, query: str = ""):
@@ -120,16 +130,22 @@ class FAQCog(commands.Cog):
             await send_faq_entry(ctx, self.bot, query)
 
     @faq_command.command(name="tag")
-    async def faq_tag(self, ctx: commands.Context, *, query: str = ""):
+    async def faq_tag(self, ctx: commands.Context, *, query: str):
         """
         Shows the list of available FAQ tags or returns the tag with the given name.
         """
         query = query.lower()
-        if not query:
-            await list_all_tags(ctx, self.bot)
-        
-        else: 
-            await send_faq_entry(ctx, self.bot, query)
+        await send_faq_entry(ctx, self.bot, query)
+    
+    # @faq_tag.autocomplete("query")
+    # async def faq_tag_autocomplete(self, ctx: commands.Context, current: str):
+    #     print(current)
+    #     tags = await list_all_tags(ctx, self.bot)
+    #     return [app_commands.Choice(name=tag, value=tag) for tag in tags if current.lower() in tag.lower()]
+    
+    @faq_command.command(name="list")
+    async def faq_list(self, ctx: commands.Context):
+        await list_all_tags(ctx, self.bot)
 
     @faq_command.command(name="add", aliases=["edit", "new"])
     @customchecks.is_mod()

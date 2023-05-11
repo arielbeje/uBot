@@ -4,6 +4,7 @@ import pytz
 from pytimeparse.timeparse import timeparse
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from utils import customchecks, sql, punishmentshelper
@@ -133,7 +134,7 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.red())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def reset(self, ctx: commands.Context):
         """
@@ -215,7 +216,7 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @commands.command(name="setnick")
+    @commands.hybrid_command(name="setnick")
     @customchecks.is_mod()
     async def set_nick(self, ctx: commands.Context, *, nick: str = None):
         """
@@ -230,7 +231,7 @@ class AdminCommands(commands.Cog):
             em.title = f"Successfully reset nickname in {ctx.guild.name}"
         await ctx.send(embed=em)
 
-    @commands.command(name="setcomment")
+    @commands.hybrid_command(name="setcomment")
     @customchecks.is_mod()
     async def set_comment(self, ctx: commands.Context, *, comment: str = None):
         """
@@ -246,7 +247,7 @@ class AdminCommands(commands.Cog):
             em.title = "Successfully removed comment symbol."
         await ctx.send(embed=em)
 
-    @commands.command(name="setjoinleavechannel")
+    @commands.hybrid_command(name="setjoinleavechannel")
     @customchecks.is_mod()
     async def set_joinleave_channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         """
@@ -263,7 +264,7 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command(name="setmuterole")
+    @commands.hybrid_command(name="setmuterole")
     @customchecks.is_mod()
     async def set_mute_role(self, ctx: commands.Context, *, role: discord.Role):
         await sql.execute("UPDATE servers SET muteroleid=? WHERE serverid=?", str(role.id), str(ctx.message.guild.id))
@@ -272,7 +273,7 @@ class AdminCommands(commands.Cog):
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def mute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
         guild = ctx.message.guild
@@ -321,7 +322,7 @@ class AdminCommands(commands.Cog):
                                    colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def tempmute(self, ctx: commands.Context, user: discord.User, time: str, *, reason: str = None):
         """
@@ -377,7 +378,7 @@ class AdminCommands(commands.Cog):
                                    colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def unmute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
         """
@@ -408,7 +409,7 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title="User isn't muted", colour=discord.Color.red())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     @commands.has_permissions(ban_members=True)
     @discord.ext.commands.bot_has_permissions(ban_members=True)
@@ -424,7 +425,7 @@ class AdminCommands(commands.Cog):
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     @commands.has_permissions(ban_members=True)
     @discord.ext.commands.bot_has_permissions(ban_members=True)
@@ -457,6 +458,15 @@ class AdminCommands(commands.Cog):
                                description=f"User is already banned until {until.isoformat()}.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
+
+    @commands.hybrid_command(name="update-commands", aliases=["updatecommands"], with_app_command=True)
+    @customchecks.is_mod()
+    async def update_commands(self, ctx: commands.Context):
+        """
+        Synchronize all commands with source code. Should only be used after updating the bot.
+        """
+        await self.bot.tree.sync()
+        await ctx.send("Commands synchronized", ephemeral=True)
 
 
 async def setup(bot):
