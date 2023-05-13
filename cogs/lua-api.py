@@ -5,7 +5,7 @@ import re
 
 import requests
 
-from typing import Union
+from typing import Union, Literal
 
 import discord
 from discord import app_commands
@@ -161,6 +161,27 @@ class LuaAPIcog(commands.Cog):
         #         print("API UDPATED\n")
 
     api_search = app_commands.Group(name = "api", description = "...")
+    @api_search.command(name="page")
+    @app_commands.choices(page=[
+        app_commands.Choice(name="Home", value="index"),
+        app_commands.Choice(name="Lifecycle", value="Data-Lifecycle"),
+        app_commands.Choice(name="Classes", value="Classes"),
+        app_commands.Choice(name="Events", value="events"),
+        app_commands.Choice(name="Concepts", value="Concepts"),
+        app_commands.Choice(name="Defines", value="defines"),
+        app_commands.Choice(name="Builtin types", value="Builtin-Types"),
+        app_commands.Choice(name="Libraries and functions", value="Libraries")
+    ])
+    async def api_page(self, interaction: discord.Interaction, page: app_commands.Choice[str]):
+        """
+        Direct links to the API or one of its main categories
+        """
+        em = discord.Embed(title=f"Factorio Runtime Docs: {page.name}", url=f"https://lua-api.factorio.com/latest/{page.value}.html", colour=discord.Colour.gold())
+        if page.name == "Home":
+            em.title = "Latest API Documentation"
+            em.description = f"Latest version: {self.api['application_version']}"
+        await interaction.response.send_message(embed=em)
+
     
     @api_search.command(name="class")
     @app_commands.rename(cls="class")
@@ -168,25 +189,39 @@ class LuaAPIcog(commands.Cog):
         """
         Seaches for classes in the api documentation.
         """
+        #Support "ClassName.member" or :ClassName::member" format in class field
+        if len(cls.split("."))>1:
+            member = cls.split(".")[1]
+            cls = cls.split(".")[0]
+        elif len(cls.split("::"))>1:
+            member = cls.split("::")[1]
+            cls = cls.split("::")[0]
+
+        if not cls in self.api["classes"]:
+            em = discord.Embed(title="Error",
+                description="No class with this name exists. Check your spelling and capitalization, or make sure to select an option from the autocomplete.",
+                colour=discord.Colour.red())
+            await interaction.response.send_message(embed=em)
+            return
         cls_entry = self.api["classes"][cls]
         if not member:
             #Class referenced directly
-            em = discord.Embed(color=0x206694)
+            em = discord.Embed(colour=discord.Colour.gold())
             em.title = cls
             em.url = f"{BASE_API_URL}{cls}.html"
 
-            em.description = format_links(cls_entry)
+            em.description = format_links(cls_entry).split("\n\n")[0]
             members = ""
             for name, method in cls_entry["methods"].items():
                 if len(members) < 900:
                     parameters = []
                     parameters_str = ""
                     if method['parameters']:
-                        for par_name, par in method['parameters'].items:
-                            parameters += f"{par_name}"
+                        for par_name, par in method['parameters'].items():
+                            parameters.append(f"{par_name}")
                         parameters_str = f"**{', '.join(parameters)}**"
                     if method['return_values']:
-                        return_values = f"→ {parse_types(method['return_values']['type'])}"
+                        return_values = ", ".join([parse_types(value['type']) for value in method['return_values']])
                     else:
                         return_values = ""
                     members += f"**{name}({parameters_str})** {return_values}\n"
@@ -206,7 +241,13 @@ class LuaAPIcog(commands.Cog):
             
         else:
             # Specific member of class referenced
-            em = discord.Embed(color=0x206694)
+            if not member in self.api["classes"][cls]["methods"] and member not in self.api["classes"][cls]["attributes"] and member not in self.api["classes"][cls]["operators"]:
+                em = discord.Embed(title="Error",
+                    description="Class has no member of the given name. Check your spelling and capitalization, or make sure to select an option from the autocomplete.",
+                    colour=discord.Colour.red())
+                await interaction.response.send_message(embed=em)
+                return
+            em = discord.Embed(colour=discord.Colour.gold())
             em.title = f"{cls}::{member}"
             em.url = f"{BASE_API_URL}{cls}.html#{cls}.{member}"
             memberfound = False
@@ -249,8 +290,22 @@ class LuaAPIcog(commands.Cog):
             
     @api_class.autocomplete("cls")
     async def api_class_autocomplete(self, interaction: discord.Interaction, current: str):
-        results = [app_commands.Choice(name=cls, value=cls) for cls in list(self.api['classes']) if current.lower() in cls.lower()][0:25]
-        return results
+        if not "." in current and not "::" in current:
+            results = [app_commands.Choice(name=cls, value=cls) for cls in list(self.api['classes']) if current.lower() in cls.lower()]
+        else:
+            if "." in current:
+                cls = current.split(".")[0]
+                sep = "."
+                current = current.split(".")[1]
+            elif "::" in current:
+                cls = current.split("::")[0]
+                sep = "::"
+                current = current.split("::")[1]
+            members = list(self.api["classes"][cls]["methods"]) + list(self.api["classes"][cls]["attributes"]) + list(self.api["classes"][cls]["operators"])
+            results = [app_commands.Choice(name=cls+sep+member, value=cls+sep+member)
+                    for member in members
+                    if current.lower() in member.lower()]
+        return results[0:25]
 
     @api_class.autocomplete("member")
     async def api_class_member_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -267,7 +322,7 @@ class LuaAPIcog(commands.Cog):
         Seaches for events in the api documentation.
         """
         event_entry = self.api["events"][event]
-        em = discord.Embed(color=0x206694)
+        em = discord.Embed(colour=discord.Colour.gold())
         em.title = event
         em.url=f"{BASE_API_URL}events.html#{event}"
         em.description = format_links(event_entry)
@@ -295,7 +350,7 @@ class LuaAPIcog(commands.Cog):
         Seaches for concepts in the api documentation.
         """
         concept_entry = self.api["concepts"][concept]
-        em = discord.Embed(color=0x206694)
+        em = discord.Embed(colour=discord.Colour.gold())
         em.description = concept_entry['description']
         concept_type = parse_types(concept_entry['type'])
         if type(concept_type) == list:
@@ -328,7 +383,7 @@ class LuaAPIcog(commands.Cog):
             for d in define_path[1:]:
                 defines_entry = defines_entry["subkeys"][d]
                 pass
-        em = discord.Embed(color=0x206694)
+        em = discord.Embed(colour=discord.Colour.gold())
         em.title = defines
         em.url = f"{BASE_API_URL}defines.html#defines.{defines}"
         em.description = format_links(defines_entry)
@@ -354,7 +409,7 @@ class LuaAPIcog(commands.Cog):
         Seaches for builtin types in the api documentation.
         """
         type_entry = self.api["builtin_types"][builtin_type]
-        em = discord.Embed(color=0x206694)
+        em = discord.Embed(colour=discord.Colour.gold())
         em.title = builtin_type
         em.url = f"{BASE_API_URL}Builtin-Types.html#{builtin_type}"
         em.description = format_links(type_entry)
