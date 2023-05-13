@@ -5,6 +5,8 @@ import re
 
 import requests
 
+from typing import Union
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -15,10 +17,7 @@ from discord.ext import tasks
 JSON_LUA_API = "https://lua-api.factorio.com/latest/runtime-api.json"
 BASE_API_URL = "https://lua-api.factorio.com/latest/"
 
-# Get api json
-# Decode json
-# Flatten API
-# Find entry
+flatten_exceptions = ["return_values", "options"]
 
 async def update_api():
     # async with aiohttp.ClientSession() as session:
@@ -33,37 +32,50 @@ async def update_api():
 
 # asyncio.run(update_api())
 
+def flatten_list(listname: str, input: list) -> Union[dict, list]:
+    """
+    Takes a list and returns a dictionary that indexes the list by names.
+    """
+    output = {}
+    for item in input:
+        if "name" in item and type(item) == dict:
+            name = item["name"]
+            del item["name"]
+            output[name] = item
+        else:
+            name = listname
+            output[name] = item
+    return output
+
+def list_contains_only_dicts(lst: list) -> bool:
+    for item in lst:
+        if not type(item) == dict:
+            return False
+    return True
+
+def inspect_dict(mixed_dict: dict) -> dict:
+    """
+    Recursively iterates through dictionary and flattens every list it encounters
+    """
+    for key in mixed_dict:
+        if type(mixed_dict[key]) == list and list_contains_only_dicts(mixed_dict[key]):
+            if not key in flatten_exceptions:
+                mixed_dict[key] = flatten_list(key, mixed_dict[key])
+            else:
+                for x, i in enumerate(mixed_dict[key]):
+                    if type(x) == dict:
+                        mixed_dict[key][i] = inspect_dict(x)
+            if key in mixed_dict[key]:
+                mixed_dict[key] = mixed_dict[key][key]
+
+        if type(mixed_dict[key]) == dict:
+            mixed_dict[key] = inspect_dict(mixed_dict[key])
+    return mixed_dict
+
 def format_links(entry):
     description = re.sub(r"\[(.+)::(.+)\]\((\1)::(\2)\)", r"[\1::\2](https://lua-api.factorio.com/latest/\1.html#\1.\2)", entry["description"])
-    description = re.sub(r"\[(.+)\]\((?!http)(.+)\)", r"[\1](https://lua-api.factorio.com/latest/\2.html)", description)
+    description = re.sub(r"\[(.+?)\]\((?!http)(.+?)\)", r"[\1](https://lua-api.factorio.com/latest/\2.html)", description)
     return description
-
-def make_event_table_field(em, concept_type):
-    table_str = ""
-    table_fields = []
-    maxlen = 0
-    for par in concept_type['parameters']:
-        table_fields.append([par['name'], par['type']])
-        if len(par['name']) > maxlen:
-            maxlen = len(par['name'])
-    for name, type in table_fields:
-        table_str += f"{name.ljust(maxlen)}    :: {type}\n"
-    em.add_field(name="Table fields", value = f"```{table_str}```")
-    return em
-
-def read_concept_types(em, concept_type):
-    types_list = []
-    for option in concept_type['options']:
-        if type(option) == str:
-            types_list.append(option)
-        elif type(option) == dict:
-            if option['complex_type'] == "table":
-                em = make_event_table_field(em, option)
-            types_list.append(option['complex_type'])
-        else:
-            em = read_concept_types(em, option)
-    return [em, types_list]
-
 
 def flattendefines(defines: list[dict], parents: list = [], output: list = []):
     for define in defines:
@@ -79,6 +91,54 @@ def flattendefines(defines: list[dict], parents: list = [], output: list = []):
         del parents[-1]
     return output
 
+def parse_types(input_type) -> Union[str, list[str, dict]]:
+    if type(input_type) == str:
+        return input_type
+    else:
+        complex_type = input_type["complex_type"]
+        if complex_type == "type":
+            return parse_types(input_type["value"])
+        elif complex_type == "union":
+            types = []
+            for option in input_type["options"]:
+                types.append(parse_types(option))
+            return " or ".join(types)
+        elif complex_type == "array":
+            return f"array[{parse_types(input_type['value'])}]"
+        elif complex_type == "dictionary" or complex_type == "LuaCustomTable":
+            return f"{complex_type}[{parse_types(input_type['key'])} → {parse_types(input_type['value'])}]"
+        elif complex_type == "function":
+            parameters = []
+            for par in input_type['parameters']:
+                parameters.append(parse_types(par))
+            return f"function({', '.join(parameters)})"
+        elif complex_type == "literal":
+            return str(input_type['value'])
+        elif complex_type == "LuaLazyLoadedValue":
+            return f"LuaLazyLoadedValue({parse_types(input_type['value'])})"
+        elif complex_type == "struct":
+            struct_str = parse_attributes(input_type['attributes'])
+            return ["struct", {"name": "Attributes", "value": struct_str}]
+        elif complex_type == "table" or complex_type == "tuple":
+            return [complex_type, parse_table_parameters(input_type['parameters'])]
+
+def parse_attributes(attributes: dict):
+    output_str = ""
+    for name, attr in attributes.items():
+        output_str += f"**{name}**: {'R' if attr['read'] else ''}{'W' if attr['write'] else ''} :: {parse_types(attr['type'])}\n"
+    return output_str
+
+def parse_table_parameters(parameters: dict):
+    table_str = ""
+    table_fields = []
+    maxlen = 0
+    for name, par in parameters.items():
+        table_fields.append([name, parse_types(par['type'])])
+        if len(name) > maxlen:
+            maxlen = len(name)
+    for name, type in table_fields:
+        table_str += f"{name.ljust(maxlen)}    :: {type}\n"
+    return {"name": "Table fields", "value": f"```{table_str}```"}
 
 class LuaAPIcog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -91,9 +151,10 @@ class LuaAPIcog(commands.Cog):
 
     @tasks.loop(hours=2)
     async def update_api_cache(self):
-        self.api = await update_api()
-        flattened_defines = flattendefines(self.api["defines"])
+        api = await update_api()
+        flattened_defines = flattendefines(api["defines"])
         self.flattened_defines_strs = [".".join(f) for f in flattened_defines]
+        self.api = inspect_dict(api)
         # async with aiohttp.ClientSession() as session:
         #     async with session.get(JSON_LUA_API) as resp:
         #         self.api = await resp.json()
@@ -107,36 +168,33 @@ class LuaAPIcog(commands.Cog):
         """
         Seaches for classes in the api documentation.
         """
-        cls_entry = self.api["classes"][int(cls)]
+        cls_entry = self.api["classes"][cls]
         if not member:
             #Class referenced directly
             em = discord.Embed(color=0x206694)
-            em.title = cls_entry["name"]
-            em.url = f"{BASE_API_URL}{cls_entry['name']}.html"
+            em.title = cls
+            em.url = f"{BASE_API_URL}{cls}.html"
 
-            # Fix links in description.
             em.description = format_links(cls_entry)
             members = ""
-            for member in cls_entry["methods"]:
+            for name, method in cls_entry["methods"].items():
                 if len(members) < 900:
-                    parameters = ""
-                    if member['parameters']:
-                        for par in member['parameters']:
-                            parameters += f"{par['name']}, "
-                        parameters = f"**{parameters[0:-2]}**"
-                    if member['return_values']:
-                        if 'complex_type' in member['return_values'][0]['type']:
-                            return_values = f"-> {member['return_values'][0]['type']['complex_type']}"
-                        else:
-                            return_values = f"-> {member['return_values'][0]['type']}"
+                    parameters = []
+                    parameters_str = ""
+                    if method['parameters']:
+                        for par_name, par in method['parameters'].items:
+                            parameters += f"{par_name}"
+                        parameters_str = f"**{', '.join(parameters)}**"
+                    if method['return_values']:
+                        return_values = f"→ {parse_types(method['return_values']['type'])}"
                     else:
                         return_values = ""
-                    members += f"**{member['name']}({parameters})** {return_values}\n"
+                    members += f"**{name}({parameters_str})** {return_values}\n"
                 else:
                     break
-            for member in cls_entry["attributes"]:
+            for name, member in cls_entry["attributes"].items():
                 if len(members) < 900:
-                    members += f"**{member['name']}**: {'R' if member['read'] else ''}{'W' if member['write'] else ''} :: {member['type']}\n"
+                    members += f"**{name}**: {'R' if member['read'] else ''}{'W' if member['write'] else ''} :: {parse_types(member['type'])}\n"
                 else:
                     break
             if len(members) > 1024:
@@ -145,80 +203,81 @@ class LuaAPIcog(commands.Cog):
                 members += "..."
             em.add_field(name="Members:", value=members)
             await interaction.response.send_message(embed=em)
+            
         else:
             # Specific member of class referenced
             em = discord.Embed(color=0x206694)
-            em.title = f"{cls_entry['name']}::{member}"
-            em.url = f"{BASE_API_URL}{cls_entry['name']}.html#{cls_entry['name']}.{member}"
+            em.title = f"{cls}::{member}"
+            em.url = f"{BASE_API_URL}{cls}.html#{cls}.{member}"
             memberfound = False
-            for method in cls_entry['methods']:
-                if member == method['name']:
+            for name, method in cls_entry['methods'].items():
+                if member == name:
                     memberfound = True
                     em.description = method['description']
                     if method["parameters"]:
                         parameters = method["parameters"]
                         parameterstr = ""
-                        for par in parameters:
-                            parameterstr += f"**{par['name']}** :: {par['type']}{'?' if par['optional'] else ''}\n" # type may also be complex type
+                        for par_name, par in parameters.items():
+                            parameterstr += f"**{par_name}** :: {parse_types(par['type'])}{'?' if par['optional'] else ''}\n"
                         em.add_field(name="Parameters", value=parameterstr, inline=False)
                     if method["return_values"]:
                         returns = method["return_values"]
                         returnsstr = ""
-                        for r in returns:
-                            returnsstr += f"-> **{r['type']}** {r['description']}"
+                        for ret in returns:
+                            returnsstr += f"→ **{parse_types(ret['type'])}**{'?' if ret['optional'] else ''} {ret['description']}\n"
                         em.add_field(name="Return values", value=returnsstr, inline=False)
                     if "raises" in method:
                         raises = method["raises"]
                         raisesstr = ""
-                        for r in raises:
-                            raisesstr += f"**{r['name']}** {r['timeframe']}"
+                        for rai_name, rai in raises.items():
+                            raisesstr += f"**{rai_name}** {rai['timeframe']}"
                         em.add_field(name="Raised events", value=raisesstr, inline=False)
                     break
-            for attribute in cls_entry['attributes']:
+            for attr_name, attribute in cls_entry['attributes'].items():
                 if memberfound:
                     break
-                if member == attribute['name']:
+                if member == attr_name:
                     memberfound = True
                     description = format_links(attribute)
-                    # type may also be complex type
-                    em.description = f"`{attribute['name']} :: {attribute['type']}{'?' if not attribute['optional'] else ''}` [{'R' if attribute['read'] else ''}{'W' if attribute['write'] else ''}]\n{description}"
+                    attribute_type = parse_types(attribute['type'])
+                    if type(attribute_type) == list:
+                        em.add_field(name=attribute_type[1]["name"], value=attribute_type[1]["value"])
+                        attribute_type = attribute_type[0]
+                    em.description = f"`{attr_name} :: {attribute_type}{'?' if attribute['optional'] else ''}` [{'R' if attribute['read'] else ''}{'W' if attribute['write'] else ''}]\n{description}"
             await interaction.response.send_message(embed=em)
 
             
     @api_class.autocomplete("cls")
     async def api_class_autocomplete(self, interaction: discord.Interaction, current: str):
-        results = [app_commands.Choice(name=cls["name"], value=str(self.api["classes"].index(cls))) for cls in self.api["classes"] if current.lower() in cls["name"].lower()][0:25]
+        results = [app_commands.Choice(name=cls, value=cls) for cls in list(self.api['classes']) if current.lower() in cls.lower()][0:25]
         return results
 
     @api_class.autocomplete("member")
     async def api_class_member_autocomplete(self, interaction: discord.Interaction, current: str):
-        pass
-        cls = int(interaction.namespace["class"])
-        pass
-        members = self.api["classes"][cls]["methods"] + self.api["classes"][cls]["attributes"] + self.api["classes"][cls]["operators"]
-        results = [app_commands.Choice(name=member["name"], value=member["name"]) 
+        cls = interaction.namespace["class"]
+        members = list(self.api["classes"][cls]["methods"]) + list(self.api["classes"][cls]["attributes"]) + list(self.api["classes"][cls]["operators"])
+        results = [app_commands.Choice(name=member, value=member) 
                 for member in members
-                if current.lower() in member["name"].lower()]
+                if current.lower() in member.lower()]
         return results[0:25]
-
 
     @api_search.command(name="event")
     async def api_event(self, interaction: discord.Interaction, event: str):
         """
         Seaches for events in the api documentation.
         """
-        event_entry = self.api["events"][int(event)]
+        event_entry = self.api["events"][event]
         em = discord.Embed(color=0x206694)
-        em.title = event_entry["name"]
-        em.url=f"{BASE_API_URL}events.html#{event_entry['name']}"
+        em.title = event
+        em.url=f"{BASE_API_URL}events.html#{event}"
         em.description = format_links(event_entry)
         data_str = ""
         members = []
         maxlen = 0
-        for data in event_entry["data"]:
-            if len(data['name']) > maxlen:
-                maxlen = len(data['name'])
-            members.append([data['name'], data['type']])
+        for data_name, data in event_entry["data"].items():
+            if len(data_name) > maxlen:
+                maxlen = len(data_name)
+            members.append([data_name, parse_types(data['type'])])
         for name, type in members:
             data_str += f"{name.ljust(maxlen)}    :: {type}\n"
         em.add_field(name="Members", value=f"```{data_str}```")
@@ -227,7 +286,7 @@ class LuaAPIcog(commands.Cog):
 
     @api_event.autocomplete("event")
     async def api_event_autocomplete(self, interaction: discord.Interaction, current: str):
-        results = [app_commands.Choice(name=event["name"], value=str(self.api["events"].index(event))) for event in self.api["events"] if current.lower() in event["name"].lower()][0:25]
+        results = [app_commands.Choice(name=event, value=event) for event in list(self.api["events"]) if current.lower() in event.lower()][0:25]
         return results
     
     @api_search.command(name="concept")
@@ -235,35 +294,26 @@ class LuaAPIcog(commands.Cog):
         """
         Seaches for concepts in the api documentation.
         """
-        concept_entry = self.api["concepts"][int(concept)]
+        concept_entry = self.api["concepts"][concept]
         em = discord.Embed(color=0x206694)
         em.description = concept_entry['description']
-        concept_type = concept_entry['type']
-        types = ""
-
-        if type(concept_type) == str:
-            types = concept_type
-        elif concept_type['complex_type'] == "table":
-            types = concept_type['complex_type']
-            em = make_event_table_field(em, concept_type)
-        elif concept_type['complex_type'] == "union":
-            em, types_list = read_concept_types(em, concept_type)
-            types = " or ".join(types_list)
-        else: 
-            types = concept_type['complex_type']
+        concept_type = parse_types(concept_entry['type'])
+        if type(concept_type) == list:
+            em.add_field(name=concept_type[1]["name"], value=concept_type[1]["value"])
+            concept_type = concept_type[0]
         
-        em.title = concept_entry['name']
-        em.url=f"{BASE_API_URL}Concepts.html#{concept_entry['name']}"
+        em.title = concept
+        em.url=f"{BASE_API_URL}Concepts.html#{concept}"
         description_paragraphs = concept_entry['description'].split('\n\n')
         if len(description_paragraphs) > 1:
             description_paragraphs[0] += f"\n[[more]]({em.url})"
-        description  = f"`{concept_entry['name']} :: {types}`\n\n{description_paragraphs[0]}"
+        description  = f"`{concept} :: {concept_type}`\n\n{description_paragraphs[0]}"
         em.description = description
         await interaction.response.send_message(embed=em)
 
     @api_concept.autocomplete("concept")
     async def api_concept_autocomplete(self, interaction: discord.Interaction, current: str):
-        results = [app_commands.Choice(name=concept["name"], value=str(self.api["concepts"].index(concept))) for concept in self.api["concepts"] if current.lower() in concept["name"].lower()][0:25]
+        results = [app_commands.Choice(name=concept, value=concept) for concept in list(self.api["concepts"]) if current.lower() in concept.lower()][0:25]
         return results
 
 
@@ -273,23 +323,19 @@ class LuaAPIcog(commands.Cog):
         Seaches for defines in the api documentation.
         """
         define_path = defines.split(".")
-        defines_entry = self.api["defines"]
-        for define in define_path:
-            for d in defines_entry:
-                if d['name'] == define:
-                    if 'subkeys' in d:
-                        defines_entry = d['subkeys']
-                    else:
-                        defines_entry = d
-                    break
+        defines_entry = self.api["defines"][define_path[0]]
+        if len(define_path) > 1:
+            for d in define_path[1:]:
+                defines_entry = defines_entry["subkeys"][d]
+                pass
         em = discord.Embed(color=0x206694)
         em.title = defines
         em.url = f"{BASE_API_URL}defines.html#defines.{defines}"
         em.description = format_links(defines_entry)
         value_str = ""
-        for value in defines_entry['values']:
+        for name, value in defines_entry['values'].items():
             if len(value_str)<900:
-                value_str += f"`{value['name']}` {format_links(value)}\n"
+                value_str += f"`{name}` {format_links(value)}\n"
             else:
                 value_str += "[...]"
                 break
@@ -304,16 +350,19 @@ class LuaAPIcog(commands.Cog):
 
     @api_search.command(name="builtin_types")
     async def api_builtin_types(self, interaction: discord.Interaction, builtin_type: str):
-        type_entry = self.api["builtin_types"][int(builtin_type)]
+        """
+        Seaches for builtin types in the api documentation.
+        """
+        type_entry = self.api["builtin_types"][builtin_type]
         em = discord.Embed(color=0x206694)
-        em.title = type_entry['name']
-        em.url = f"{BASE_API_URL}Builtin-Types.html#{type_entry['name']}"
+        em.title = builtin_type
+        em.url = f"{BASE_API_URL}Builtin-Types.html#{builtin_type}"
         em.description = format_links(type_entry)
         await interaction.response.send_message(embed=em)
 
     @api_builtin_types.autocomplete("builtin_type")
     async def api_builtin_types_autocomplete(self, interaction: discord.Interaction, current: str):
-        results = [app_commands.Choice(name=builtin_type["name"], value=str(self.api["builtin_types"].index(builtin_type))) for builtin_type in self.api["builtin_types"] if current.lower() in builtin_type["name"].lower()][0:25]
+        results = [app_commands.Choice(name=builtin_type, value=builtin_type) for builtin_type in list(self.api["builtin_types"]) if current.lower() in builtin_type.lower()][0:25]
         return results
 
 async def setup(bot: commands.Bot) -> None:
