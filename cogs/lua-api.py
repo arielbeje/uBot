@@ -1,8 +1,5 @@
 import aiohttp
-import asyncio
-
 import re
-
 import requests
 
 from typing import Union, Literal
@@ -29,8 +26,6 @@ async def update_api():
     api = r.json()
 
     return api
-
-# asyncio.run(update_api())
 
 def flatten_list(listname: str, input: list) -> Union[dict, list]:
     """

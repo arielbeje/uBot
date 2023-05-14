@@ -7,7 +7,7 @@ import tomd
 import discord
 from discord.ext import commands
 
-from typing import List, Tuple, Union
+from typing import Tuple
 
 WIKI_API_URL = "https://wiki.factorio.com/api.php"
 
