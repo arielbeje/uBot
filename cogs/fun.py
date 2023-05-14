@@ -23,7 +23,7 @@ class FunCog(commands.Cog):
         elif rndInt == 4:
             await ctx.reply("The expansion will be released when it's done.")
         elif rndInt == 5:
-            await ctx.reply("The expansion was gets delayed by a month every time you ask.")
+            await ctx.reply("The expansion gets delayed by a month every time you ask.")
         else:
             msg = await ctx.reply(f"The expansion is planned for release in {random.randint(365, 1000)} days.")
             for i in range(4):
