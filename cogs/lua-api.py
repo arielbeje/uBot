@@ -1,6 +1,5 @@
 import aiohttp
 import re
-import requests
 
 from typing import Union, Literal
 
@@ -9,23 +8,16 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ext import tasks
 
-
-
 JSON_LUA_API = "https://lua-api.factorio.com/latest/runtime-api.json"
 BASE_API_URL = "https://lua-api.factorio.com/latest/"
 
 flatten_exceptions = ["return_values", "options"]
 
-async def update_api():
-    # async with aiohttp.ClientSession() as session:
-    #     async with session.get(JSON_LUA_API) as resp:
-    #         if resp.ok == True:
-    #             api = await resp.json()
-    #             return api
-    r = requests.get(JSON_LUA_API)
-    api = r.json()
-
-    return api
+async def update_api() -> dict:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(JSON_LUA_API) as resp:
+            api = await resp.json()
+            return api
 
 def flatten_list(listname: str, input: list) -> Union[dict, list]:
     """
@@ -150,10 +142,6 @@ class LuaAPIcog(commands.Cog):
         flattened_defines = flattendefines(api["defines"])
         self.flattened_defines_strs = [".".join(f) for f in flattened_defines]
         self.api = inspect_dict(api)
-        # async with aiohttp.ClientSession() as session:
-        #     async with session.get(JSON_LUA_API) as resp:
-        #         self.api = await resp.json()
-        #         print("API UDPATED\n")
 
     api_search = app_commands.Group(name = "api", description = "...")
     @api_search.command(name="page")

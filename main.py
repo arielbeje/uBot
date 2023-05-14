@@ -252,29 +252,31 @@ async def on_member_ban(guild: discord.Guild, user: discord.User):
             await joinLeaveChannel.send(f"**Ban** - {user.name}, ID {user.id}.\n")
 
 
-if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(initdb())
+@bot.event 
+async def setup_hook():
+    await initdb()
 
     hadError = False
     coglist = []
-
     for root, directories, files in os.walk("cogs"):
         for filename in files:
             filepath = os.path.join(root, filename)
             if filepath.endswith(".py"):
                 coglist.append(filepath.split(".py")[0].replace(os.sep, "."))
-
+    
     logger.debug("Loading cogs")
     for cog in coglist:
-        logger.debug(f"Loading {cog}")
         try:
-            asyncio.get_event_loop().run_until_complete(bot.load_extension(cog))
+            await bot.load_extension(cog)
             logger.debug(f"Loaded {cog} successfully")
         except Exception:
             logger.exception(f"Failed to load cog: {cog}")
             hadError = True
+    
     if hadError:
         logger.warning("Error during cog loading")
     else:
         logger.info("Successfully loaded all cogs")
+
+if __name__ == "__main__":
     bot.run(os.environ["UBOT"], reconnect=True)
