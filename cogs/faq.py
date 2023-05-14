@@ -106,18 +106,20 @@ class FAQCog(commands.Cog):
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
-        # self.update_faq_cache.start()
+        self.update_faq_cache.start()
         type(self).__name__ = "Frequently Asked Questions"
+    
+    def cog_unload(self) -> None:
+        self.update_faq_cache.cancel()
 
-    # @tasks.loop(minutes=60)
-    # async def update_faq_cache(self):
-    #     id = 1105928546318299156
-    #     self.tags = [result[0] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=? ORDER BY title", str(id))]
-    #     print(self.tags)
+    @tasks.loop(hours=3)
+    async def update_faq_cache(self):
+        self.tags = {}
+        servers = [int(result[0]) for result in await sql.fetch("SELECT serverid FROM servers")]
+        for server in servers:
+            self.tags[server] = [result[0] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=? ORDER BY title", str(server))]
 
-
-
-    @commands.hybrid_group(name="faq", aliases=["tag", "tags", "faw", "FAQ"], with_app_command=True)
+    @commands.hybrid_group(name="faq", aliases=["tag", "tags", "faw", "FAQ"], fallback="list", with_app_command=True)
     async def faq_command(self, ctx: commands.Context, *, query: str = ""):
         """
         Shows the list of available FAQ tags or returns the tag with the given name.
@@ -136,16 +138,6 @@ class FAQCog(commands.Cog):
         """
         query = query.lower()
         await send_faq_entry(ctx, self.bot, query)
-    
-    # @faq_tag.autocomplete("query")
-    # async def faq_tag_autocomplete(self, ctx: commands.Context, current: str):
-    #     print(current)
-    #     tags = await list_all_tags(ctx, self.bot)
-    #     return [app_commands.Choice(name=tag, value=tag) for tag in tags if current.lower() in tag.lower()]
-    
-    @faq_command.command(name="list")
-    async def faq_list(self, ctx: commands.Context):
-        await list_all_tags(ctx, self.bot)
 
     @faq_command.command(name="add", aliases=["edit", "new"])
     @customchecks.is_mod()
@@ -210,6 +202,7 @@ class FAQCog(commands.Cog):
                                   content, image, timestamp, str(ctx.message.guild.id), title)
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
             await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, discord.Colour.dark_green()))
+        await self.update_faq_cache()
 
     @faq_command.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
@@ -231,9 +224,11 @@ class FAQCog(commands.Cog):
                                description="Query not in FAQ tags.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
+        await self.update_faq_cache()
 
     @faq_command.command(name="link")
     @customchecks.is_mod()
+    @app_commands.rename(title="new_title", link="link_to")
     async def faq_link(self, ctx: commands.Context, title: str, *, link: str):
         """
         Makes a shortcut tag in the list of FAQ tags.
@@ -253,6 +248,15 @@ class FAQCog(commands.Cog):
                                description="The tag to link to does not exist in the list of FAQ tags.",
                                colour=discord.Colour.red())
         await ctx.send(embed=em)
+        await self.update_faq_cache()
+    
+    @faq_tag.autocomplete("query")
+    @faq_command.autocomplete("query")
+    @faq_remove.autocomplete("title")
+    @faq_link.autocomplete("link")
+    async def faq_tag_autocomplete(self, ctx: commands.Context, current: str):
+        server = ctx.guild.id
+        return [app_commands.Choice(name=tag, value=tag) for tag in self.tags[server] if current.lower() in tag.lower()][0:25]
 
 
 async def setup(bot):
