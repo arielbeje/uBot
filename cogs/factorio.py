@@ -1,7 +1,6 @@
 import aiohttp
 import bs4
 import feedparser
-import html
 import re
 import tomd
 
@@ -57,7 +56,7 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     for tag in footer.find_all("a", class_="slot-button-inline"):
         taglist.append(f"[{tag.string.strip()}](https://mods.factorio.com{tag['href']})")
     gameVersions = infoCard.find("div", title="Available for these Factorio versions").contents[2].strip()
-    downloads = infoCard.find("div", title="Downloads").contents[2].strip()
+    downloads = infoCard.find("div", title="Downloads, updated daily").contents[2].strip()
     createdAtDiv = infoCard.find("div", title="Last updated")
     createdAt = createdAtDiv.find("span").contents[0].strip()
     fields.extend([{"name": "Category", "value": "None" if len(taglist) == 0 else ", ".join(taglist)},
@@ -148,7 +147,7 @@ async def search_wiki_page(client, api_url, title):
         results = pagejson["query"]["search"]
         return totalhits, results
 
-async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = False):
+async def process_wiki(ctx: commands.Context, searchterm: str):
     """
     Sends a message according to parameters given
     """
@@ -219,9 +218,6 @@ async def wiki_page_embed(baseURL, bufferMsg, client, result):
         em.set_thumbnail(url=image_url)
     await bufferMsg.edit(embed=em)
 
-def is_camel_case(query: str) -> bool:
-    return query != query.lower() and query != query.upper() and "_" not in query
-
 
 class FactorioCog(commands.Cog):
     def __init__(self, bot):
@@ -229,66 +225,77 @@ class FactorioCog(commands.Cog):
         self.bot = bot
         type(self).__name__ = "Factorio Commands"
 
-    @commands.command(aliases=["mod"])
-    async def linkmod(self, ctx: commands.Context, *, modname: str = None):
+    @commands.hybrid_command(aliases=["linkmod"])
+    async def mod(self, ctx: commands.Context, *, modname: str = None):
         """
         Search for a mod in [the Factorio mod portal](https://mods.factorio.com).
         """
+        #Error: no mod name provided
         if not modname:
             em = discord.Embed(title="Error",
                                description="To use the command, you need to enter a mod name to search.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
-        else:
-            em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
-                               description="This may take a bit.",
-                               colour=discord.Colour.gold())
-            bufferMsg = await ctx.send(embed=em)
-            async with ctx.channel.typing():
-                response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}/downloaded/1?version=any")
-                if response[0] == 200:
-                    soup = response[1]
-                    if " 0 " in soup.find("div", class_="grey").string:
-                        em = discord.Embed(title="Error",
-                                           description=f"Could not find \"{modname.title()}\" in mod portal.",
-                                           colour=discord.Colour.red())
-                        await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+            return
+        
+        #Create and send search in progress embed
+        em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
+                            description="This may take a bit.",
+                            colour=discord.Colour.gold())
+        bufferMsg = await ctx.send(embed=em)
+        async with ctx.channel.typing():
 
-                    elif soup.find_all("div", class_="flex-column"):
-                        if len(soup.find_all("div", class_="flex-column")) > 1:
-                            em = discord.Embed(title=f"Search results for \"{modname}\"",
-                                               colour=discord.Colour.gold())
-                            i = 0
-                            for result in soup.find_all("div", class_="flex-column"):
-                                if i <= 4:
-                                    title = result.find("h2", class_="mb0").find("a")
-                                    if title.string.title() == modname.title():
-                                        em = mod_embed(result)
-                                        break
-                                    author = result.find("a", class_="orange").string
-                                    summary = markdownEx.sub(r"\\\1", result.find("p", class_="pre-line").string)
-                                    em.add_field(name=f"{title.string} (by {author})",
-                                                 value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
-                                    i += 1
+            #Get mod search results page
+            response = await get_soup(f"https://mods.factorio.com/?version=1.1&search_order=updated&query={modname.title()}")
 
-                        else:
-                            em = mod_embed(soup.find("div", class_="flex-column"))
+            #Error: bad response
+            if response[0] != 200:
+                em = discord.Embed(title="Error",
+                                    description="Couldn't reach mods.factorio.com.",
+                                    colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                return
+        
+            soup = response[1]
 
-                        await bufferMsg.edit(embed=em)
-                else:
-                    em = discord.Embed(title="Error",
-                                       description="Couldn't reach mods.factorio.com.",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+            #Error: no results
+            if " 0 " in soup.find("div", class_="grey").string:
+                em = discord.Embed(title="Error",
+                                    description=f"Could not find \"{modname.title()}\" in mod portal.",
+                                    colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                return
 
-    @commands.command()
+            #Multiple results
+            if len(soup.find_all("div", class_="flex-column")) > 1:
+                em = discord.Embed(title=f"Search results for \"{modname}\"",
+                                    colour=discord.Colour.gold())
+                i = 0
+                for result in soup.find_all("div", class_="flex-column"):
+                    if i <= 4:
+                        title = result.find("h2", class_="mb0").find("a")
+                        if title.string.title() == modname.title():
+                            em = mod_embed(result)
+                            break
+                        author = result.find("a", class_="orange").string
+                        summary = markdownEx.sub(r"\\\1", result.find("p", class_="pre-line").string)
+                        em.add_field(name=f"{title.string} (by {author})",
+                                        value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
+                        i += 1
+            #Single result
+            else:
+                em = mod_embed(soup.find("div", class_="flex-column"))
+
+            await bufferMsg.edit(embed=em)
+
+    @commands.hybrid_command()
     async def wiki(self, ctx: commands.Context, *, searchterm: str = None):
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
         await process_wiki(ctx, searchterm)
 
-    @commands.command()
+    @commands.hybrid_command()
     async def fff(self, ctx: commands.Context, number: str = None):
         """
         Links an fff with the number provided.
