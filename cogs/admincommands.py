@@ -10,6 +10,34 @@ from discord.ext import commands
 from utils import customchecks, sql, punishmentshelper
 from utils.punishmentshelper import lazily_fetch_member
 
+class Confirm(discord.ui.View):
+    def __init__(self, user: discord.Member):
+        super().__init__()
+        self.value = None
+        self.user = user
+    
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = True
+        for button in self.children:
+            button.disabled = True
+        await interaction.response.edit_message(view=self)
+        self.stop()
+    
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        for button in self.children:
+            button.disabled = True
+        await interaction.response.edit_message(view=self)
+        self.stop()
+    
+    async def interaction_check(self, interaction: discord.Interaction):
+        if interaction.user.id == self.user.id:
+            return True
+        else:
+            await interaction.response.send_message("Error: buttons can only be used by the person that used the command", ephemeral=True)
+            return False
 
 class AdminCommands(commands.Cog):
     def __init__(self, bot):
@@ -139,14 +167,24 @@ class AdminCommands(commands.Cog):
     async def reset(self, ctx: commands.Context):
         """
         Resets the bot's settings for this server.
-        Careful! This doesn't have a confirmation message yet!
         """
-        # TODO: Add confirmation message
-        await sql.deleteserver(ctx.message.guild.id)
-        await sql.initserver(ctx.message.guild.id)
-        em = discord.Embed(title="Reset all data for this server",
-                           colour=discord.Colour.dark_green())
-        await ctx.send(embed=em)
+        view = Confirm(ctx.author)
+        await ctx.send(content="Are you sure you want to reset all the bot's settings for this server? \nThis may cause loss of data!", view=view)
+        await view.wait()
+        if view.value == None:
+            em = discord.Embed(title="Operation timed out",
+                                colour=discord.Colour.red())
+            await ctx.send(embed=em, ephemeral=True)
+        elif view.value:
+            await sql.deleteserver(ctx.message.guild.id)
+            await sql.initserver(ctx.message.guild.id)
+            em = discord.Embed(title="Reset all data for this server",
+                            colour=discord.Colour.dark_green())
+            await ctx.send(embed=em)
+        else:
+            em = discord.Embed(title="Operation cancelled",
+                            colour=discord.Colour.red())
+            await ctx.send(embed=em)
 
     @commands.hybrid_group(aliases=["prune"], invoke_without_command=True, fallback="all")
     @commands.has_permissions(manage_messages=True, read_message_history=True)
