@@ -218,6 +218,7 @@ class FAQCog(commands.Cog):
                                  title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
                                  color=discord.Colour.red())
             await sql.execute("DELETE FROM faq WHERE serverid=? AND title=?", str(ctx.message.guild.id), title)
+            await sql.execute("DELETE FROM faq WHERE serverid=? and link=?", str(ctx.message.guild.id), title)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
