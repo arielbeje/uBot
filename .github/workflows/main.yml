@@ -23,6 +23,10 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
       -
+        name: Fetch lowercase repository path
+        run: |
+          echo "REPOSITORY_LOWERCASE=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+      -
         name: Build and push
         uses: docker/build-push-action@v3
         with:
@@ -30,5 +34,5 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ env.REPOSITORY_LOWERCASE }}:latest
+            ghcr.io/${{ env.REPOSITORY_LOWERCASE }}:${{ github.sha }}
