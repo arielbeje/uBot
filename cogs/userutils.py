@@ -1,5 +1,4 @@
 from ago import human
-import pytz
 
 import discord
 from discord.ext import commands
@@ -28,7 +27,7 @@ class UserUtils(commands.Cog):
         self.bot = bot
         type(self).__name__ = "Utility Commands"
 
-    @commands.command(name="userinfo")
+    @commands.hybrid_command(name="userinfo")
     async def user_info(self, ctx: commands.Context, member: discord.Member = None):
         """Returns information about the given member"""
         member = member or ctx.author
@@ -44,17 +43,15 @@ class UserUtils(commands.Cog):
         ]
         for field in inlineFields:
             em.add_field(**field, inline=True)
-        avatar = member.avatar_url_as(size=64)  # if not None else discord.Embed.Empty
-        registeredAt = pytz.utc.localize(member.created_at)
-        joinedAt = pytz.utc.localize(member.joined_at)
-        em.add_field(name="Joined", value=f"{human(joinedAt, precision=4)} ({joinedAt.replace(microsecond=0).isoformat()})")
+        avatar = member.avatar.replace(size=64)
+        em.add_field(name="Joined", value=f"{human(member.joined_at, precision=4)} ({member.joined_at.replace(microsecond=0).isoformat()})")
         em.add_field(name="Roles", value=", ".join([role.name for role in member.roles]).replace("@everyone", "@\u200beveryone"))
         em.set_author(name=member.name, icon_url=avatar)
         em.set_thumbnail(url=avatar)
-        em.set_footer(text=f"Created: {human(registeredAt, precision=4)} ({registeredAt.replace(microsecond=0).isoformat()})")
+        em.set_footer(text=f"Created: {human(member.created_at, precision=4)} ({member.created_at.replace(microsecond=0).isoformat()})")
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     async def info(self, ctx: commands.Context):
         """Shows info about the bot"""
         em = discord.Embed(title="uBot",
@@ -65,5 +62,5 @@ class UserUtils(commands.Cog):
         await ctx.send(embed=em)
 
 
-def setup(bot):
-    bot.add_cog(UserUtils(bot))
+async def setup(bot):
+    await bot.add_cog(UserUtils(bot))

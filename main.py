@@ -32,6 +32,7 @@ intents.bans = True
 intents.guilds = True
 intents.members = True
 intents.messages = True
+intents.message_content = True
 intents.presences = True
 
 if "UBOT" not in os.environ:
@@ -146,9 +147,9 @@ async def on_ready():
     for serverid, userid, until in unfinishedBans:
         until = datetime.datetime.strptime(until, "%Y-%m-%d %H:%M:%S%z")
         guild = bot.get_guild(int(serverid))
-        guildBans = await guild.bans()
+        guildBans = guild.bans()
         userid = int(userid)
-        for _, user in guildBans:
+        async for _, user in guildBans:
             if user.id == userid:
                 break
         else:
@@ -184,7 +185,7 @@ negativeModEx = re.compile(r"\`[\S\s]*?\>\>(.*?)\<\<[\S\s]*?\`")
 
 @bot.event
 async def on_message(message: discord.Message):
-    if not isinstance(message.channel, discord.abc.GuildChannel):
+    if not isinstance(message.channel, discord.abc.GuildChannel) and not isinstance(message.channel, discord.Thread) and not isinstance(message.channel, discord.ForumChannel):
         return
     msg = message.content
     comment = await sql.fetch("SELECT comment FROM servers WHERE serverid=?", str(message.guild.id))
@@ -251,29 +252,31 @@ async def on_member_ban(guild: discord.Guild, user: discord.User):
             await joinLeaveChannel.send(f"**Ban** - {user.name}, ID {user.id}.\n")
 
 
-if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(initdb())
+@bot.event 
+async def setup_hook():
+    await initdb()
 
     hadError = False
     coglist = []
-
     for root, directories, files in os.walk("cogs"):
         for filename in files:
             filepath = os.path.join(root, filename)
             if filepath.endswith(".py"):
                 coglist.append(filepath.split(".py")[0].replace(os.sep, "."))
-
+    
     logger.debug("Loading cogs")
     for cog in coglist:
-        logger.debug(f"Loading {cog}")
         try:
-            bot.load_extension(cog)
+            await bot.load_extension(cog)
             logger.debug(f"Loaded {cog} successfully")
         except Exception:
             logger.exception(f"Failed to load cog: {cog}")
             hadError = True
+    
     if hadError:
         logger.warning("Error during cog loading")
     else:
         logger.info("Successfully loaded all cogs")
-    bot.run(os.environ["UBOT"], bot=True, reconnect=True)
+
+if __name__ == "__main__":
+    bot.run(os.environ["UBOT"], reconnect=True)

@@ -4,11 +4,40 @@ import pytz
 from pytimeparse.timeparse import timeparse
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from utils import customchecks, sql, punishmentshelper
 from utils.punishmentshelper import lazily_fetch_member
 
+class Confirm(discord.ui.View):
+    def __init__(self, user: discord.Member):
+        super().__init__()
+        self.value = None
+        self.user = user
+    
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = True
+        for button in self.children:
+            button.disabled = True
+        await interaction.response.edit_message(view=self)
+        self.stop()
+    
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        for button in self.children:
+            button.disabled = True
+        await interaction.response.edit_message(view=self)
+        self.stop()
+    
+    async def interaction_check(self, interaction: discord.Interaction):
+        if interaction.user.id == self.user.id:
+            return True
+        else:
+            await interaction.response.send_message("Error: buttons can only be used by the person that used the command", ephemeral=True)
+            return False
 
 class AdminCommands(commands.Cog):
     def __init__(self, bot):
@@ -16,7 +45,7 @@ class AdminCommands(commands.Cog):
         self.bot = bot
         type(self).__name__ = "Admin Commands"
 
-    @commands.group(aliases=["modrole"], invoke_without_command=True)
+    @commands.hybrid_group(aliases=["modrole"], fallback="show", invoke_without_command=True)
     async def modroles(self, ctx: commands.Context):
         """
         Lists the moderator roles defined for this server.
@@ -78,7 +107,7 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.red())
         await ctx.send(embed=em)
 
-    @commands.group(invoke_without_command=True)
+    @commands.hybrid_group(invoke_without_command=True, fallback = "show")
     async def prefixes(self, ctx: commands.Context):
         """
         List the available prefixes for this server.
@@ -133,89 +162,101 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.red())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def reset(self, ctx: commands.Context):
         """
         Resets the bot's settings for this server.
-        Careful! This doesn't have a confirmation message yet!
         """
-        # TODO: Add confirmation message
-        await sql.deleteserver(ctx.message.guild.id)
-        await sql.initserver(ctx.message.guild.id)
-        em = discord.Embed(title="Reset all data for this server",
-                           colour=discord.Colour.dark_green())
-        await ctx.send(embed=em)
+        view = Confirm(ctx.author)
+        await ctx.send(content="Are you sure you want to reset all the bot's settings for this server? \nThis may cause loss of data!", view=view)
+        await view.wait()
+        if view.value == None:
+            em = discord.Embed(title="Operation timed out",
+                                colour=discord.Colour.red())
+            await ctx.send(embed=em, ephemeral=True)
+        elif view.value:
+            await sql.deleteserver(ctx.message.guild.id)
+            await sql.initserver(ctx.message.guild.id)
+            em = discord.Embed(title="Reset all data for this server",
+                            colour=discord.Colour.dark_green())
+            await ctx.send(embed=em)
+        else:
+            em = discord.Embed(title="Operation cancelled",
+                            colour=discord.Colour.red())
+            await ctx.send(embed=em)
 
-    @commands.group(aliases=["purge"], invoke_without_command=True)
+    @commands.hybrid_group(aliases=["prune"], invoke_without_command=True, fallback="all")
     @commands.has_permissions(manage_messages=True, read_message_history=True)
-    async def prune(self, ctx: commands.Context, pruneNum: int):
+    @app_commands.rename(purge_num="number")
+    async def purge(self, ctx: commands.Context, purge_num: int):
         """
-        Prunes a certain amount of messages. Can also use message ID.
-        Maximum amount of messages to prune is 300, unless a message ID is specified.
+        Purges a certain amount of messages. Can also use message ID.
+        Maximum amount of messages to purge is 300, unless a message ID is specified.
         """
-        if pruneNum < 300:
-            await ctx.channel.purge(limit=pruneNum + 1)
+        if purge_num < 300:
+            await ctx.channel.purge(limit=purge_num + 1)
 
         else:
-            message = await ctx.get_message(pruneNum)
+            message = await ctx.get_message(purge_num)
             await ctx.channel.purge(after=message)
 
-    @prune.error
-    async def prune_error_handler(self, ctx: commands.Context, error: Exception):
+    @purge.error
+    async def purge_error_handler(self, ctx: commands.Context, error: Exception):
         origerror = getattr(error, "original", error)
-        if isinstance(origerror, discord.errors.NotFound):  # Invalid prune number.
+        if isinstance(origerror, discord.errors.NotFound):  # Invalid purge number.
             em = discord.Embed(title="Error",
                                description="That message ID is invalid.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
         elif isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
-                               description=f"`{ctx.prefix}prune` requires a number of messages or a message ID.",
+                               description=f"`{ctx.prefix}purge` requires a number of messages or a message ID.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @prune.command(name="user")
+    @purge.command(name="user")
     @commands.has_permissions(manage_messages=True, read_message_history=True)
-    async def prune_member(self, ctx: commands.Context, wantedMember: discord.Member, pruneNum: int):
+    @app_commands.rename(purge_num="number", wanted_member="member")
+    async def purge_member(self, ctx: commands.Context, wanted_member: discord.Member, purge_num: int):
         """
-        Prunes a certain amount of messages from a certain user. Can also use message ID.
+        Purges a certain amount of messages from a certain user. Can also use message ID.
         Note: Will only scan up to 300 messages at a time, unless a message ID is specified.
         """
-        if pruneNum < 300:
-            global pruneCount
-            pruneCount = 0
+        if purge_num < 300:
+            global purgeCount
+            purgeCount = 0
 
             def check(message):
-                isMember = message.author == wantedMember
+                isMember = message.author == wanted_member
                 if isMember:
-                    global pruneCount
-                    pruneCount += 1
-                return isMember and pruneCount <= pruneNum
+                    global purgeCount
+                    purgeCount += 1
+                return isMember and purgeCount <= purge_num
 
             await ctx.channel.purge(limit=300, check=check)
         else:
             def check(message):
-                return message.author == wantedMember
+                return message.author == wanted_member
 
-            message = await ctx.get_message(pruneNum)
+            message = await ctx.get_message(purge_num)
             await ctx.channel.purge(after=message, check=check)
 
-    @prune_member.error
-    async def prune_member_error_handler(self, ctx: commands.Context, error: Exception):
+    @purge_member.error
+    async def purge_member_error_handler(self, ctx: commands.Context, error: Exception):
         origerror = getattr(error, "original", error)
-        if isinstance(origerror, discord.errors.NotFound):  # Invalid prune number.
+        if isinstance(origerror, discord.errors.NotFound):  # Invalid purge number.
             em = discord.Embed(title="Error",
                                description="That message ID/user is invalid.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
         elif isinstance(error, commands.errors.MissingRequiredArgument):
             em = discord.Embed(title="Error",
-                               description=f"`{ctx.prefix}prune user` requires a user and a number of messages or a message ID.",
+                               description=f"`{ctx.prefix}purge user` requires a user and a number of messages or a message ID.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @commands.command(name="setnick")
+    @commands.hybrid_command(name="setnick")
     @customchecks.is_mod()
     async def set_nick(self, ctx: commands.Context, *, nick: str = None):
         """
@@ -230,7 +271,7 @@ class AdminCommands(commands.Cog):
             em.title = f"Successfully reset nickname in {ctx.guild.name}"
         await ctx.send(embed=em)
 
-    @commands.command(name="setcomment")
+    @commands.hybrid_command(name="setcomment")
     @customchecks.is_mod()
     async def set_comment(self, ctx: commands.Context, *, comment: str = None):
         """
@@ -246,7 +287,7 @@ class AdminCommands(commands.Cog):
             em.title = "Successfully removed comment symbol."
         await ctx.send(embed=em)
 
-    @commands.command(name="setjoinleavechannel")
+    @commands.hybrid_command(name="setjoinleavechannel")
     @customchecks.is_mod()
     async def set_joinleave_channel(self, ctx: commands.Context, channel: discord.TextChannel = None):
         """
@@ -263,7 +304,7 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command(name="setmuterole")
+    @commands.hybrid_command(name="setmuterole")
     @customchecks.is_mod()
     async def set_mute_role(self, ctx: commands.Context, *, role: discord.Role):
         await sql.execute("UPDATE servers SET muteroleid=? WHERE serverid=?", str(role.id), str(ctx.message.guild.id))
@@ -272,7 +313,7 @@ class AdminCommands(commands.Cog):
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def mute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
         guild = ctx.message.guild
@@ -321,7 +362,7 @@ class AdminCommands(commands.Cog):
                                    colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def tempmute(self, ctx: commands.Context, user: discord.User, time: str, *, reason: str = None):
         """
@@ -377,7 +418,7 @@ class AdminCommands(commands.Cog):
                                    colour=discord.Colour.red())
             await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     async def unmute(self, ctx: commands.Context, user: discord.User, *, reason: str = None):
         """
@@ -408,7 +449,7 @@ class AdminCommands(commands.Cog):
             em = discord.Embed(title="User isn't muted", colour=discord.Color.red())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     @commands.has_permissions(ban_members=True)
     @discord.ext.commands.bot_has_permissions(ban_members=True)
@@ -424,7 +465,7 @@ class AdminCommands(commands.Cog):
                            colour=discord.Colour.dark_green())
         await ctx.send(embed=em)
 
-    @commands.command()
+    @commands.hybrid_command()
     @customchecks.is_mod()
     @commands.has_permissions(ban_members=True)
     @discord.ext.commands.bot_has_permissions(ban_members=True)
@@ -458,6 +499,15 @@ class AdminCommands(commands.Cog):
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
 
+    @commands.hybrid_command(name="update-commands", aliases=["updatecommands"], with_app_command=True)
+    @customchecks.is_mod()
+    async def update_commands(self, ctx: commands.Context):
+        """
+        Synchronize all commands with source code. Should only be used after updating the bot.
+        """
+        await self.bot.tree.sync()
+        await ctx.send("Commands synchronized", ephemeral=True)
 
-def setup(bot):
-    bot.add_cog(AdminCommands(bot))
+
+async def setup(bot):
+    await bot.add_cog(AdminCommands(bot))

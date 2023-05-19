@@ -1,16 +1,14 @@
 import aiohttp
 import bs4
 import feedparser
-import html
 import re
 import tomd
 
 import discord
 from discord.ext import commands
 
-from typing import List, Tuple, Union
+from typing import Tuple
 
-BASE_API_URL = "https://lua-api.factorio.com/latest/"
 WIKI_API_URL = "https://wiki.factorio.com/api.php"
 
 headerEx = re.compile(r"((^<br/>$)|(This (article|page)))")
@@ -58,7 +56,7 @@ def mod_embed(result: bs4.BeautifulSoup) -> discord.Embed:
     for tag in footer.find_all("a", class_="slot-button-inline"):
         taglist.append(f"[{tag.string.strip()}](https://mods.factorio.com{tag['href']})")
     gameVersions = infoCard.find("div", title="Available for these Factorio versions").contents[2].strip()
-    downloads = infoCard.find("div", title="Downloads").contents[2].strip()
+    downloads = infoCard.find("div", title="Downloads, updated daily").contents[2].strip()
     createdAtDiv = infoCard.find("div", title="Last updated")
     createdAt = createdAtDiv.find("span").contents[0].strip()
     fields.extend([{"name": "Category", "value": "None" if len(taglist) == 0 else ", ".join(taglist)},
@@ -149,7 +147,7 @@ async def search_wiki_page(client, api_url, title):
         results = pagejson["query"]["search"]
         return totalhits, results
 
-async def process_wiki(ctx: commands.Context, searchterm: str, stable: bool = False):
+async def process_wiki(ctx: commands.Context, searchterm: str):
     """
     Sends a message according to parameters given
     """
@@ -220,111 +218,6 @@ async def wiki_page_embed(baseURL, bufferMsg, client, result):
         em.set_thumbnail(url=image_url)
     await bufferMsg.edit(embed=em)
 
-def is_camel_case(query: str) -> bool:
-    return query != query.lower() and query != query.upper() and "_" not in query
-
-
-def process_query(query: str) -> Union[Tuple[str, List[str]], Tuple[str, str]]:
-    if "::" in query:
-        splitQuery = query.split("::")
-        if query.startswith("Defines"):
-            return ("define", splitQuery[1].split("."))
-        else:
-            return ("class+property", splitQuery)
-    elif query.count(".") == 1 and is_camel_case(query.split(".")[0]):
-        return ("class+property", query.split("."))
-    elif is_camel_case(query):
-        return ("class", query)
-    elif query.startswith("defines."):
-        return ("define", query.split(".")[1:])
-    else:
-        return ("event", query)
-
-
-def define_tr_to_str(tr: bs4.element.Tag) -> str:
-    for a in tr.find_all("a"):
-        a["href"] = BASE_API_URL + a["href"]
-    data = (tr.find("td", class_="header").string, tr.find("td", class_="description"))
-    contents = data[1].contents
-    if len(contents) > 0:
-        if len(contents) > 1 and "\n" not in contents[0]:
-            description = tomd.convert(f"<p>{''.join([str(item) for item in contents[:-1]])}</p>").strip()
-        else:
-            description = contents[0].split('\n')[0].strip()
-        return f"`{data[0]}` - {description}"
-    else:
-        return f"`{data[0]}`"
-
-
-def define_table_to_strs(table: bs4.element.Tag) -> List[str]:
-    trs = table.find_all("tr", class_="element")
-    return [define_tr_to_str(tr) for tr in trs]
-
-
-def class_tr_to_str(tr: bs4.element.Tag) -> str:
-    for a in tr.find_all("a"):
-        a["href"] = BASE_API_URL + a["href"]
-    data = (tr.find("td", class_="header"), tr.find("td", class_="description"))
-    nameSpan = data[0].find("span", class_="element-name")
-    if data[0].find("span", class_="attribute-type") is not None:
-        accessType = "param"
-        type_ = data[0].find("span", class_="param-type").text.strip()
-    else:
-        accessType = "func"
-    if accessType == "param":
-        attributeMode = data[0].find("span", class_="attribute-mode").text
-        header = f"`{nameSpan.text} :: {type_}` {attributeMode}"
-    else:
-        header = f"`{nameSpan.text}`"
-
-    contents = [item for item in data[1].contents if item != " "]
-    if len(contents) > 0:
-        if len(contents) > 1 and "\n" not in contents[0]:
-            description = tomd.convert(f"<p>{''.join([str(item) for item in contents[:-1]])}</p>").strip()
-        else:
-            description = contents[0].strip()
-        return f"{header} - {description}"
-    else:
-        return header
-
-
-def class_table_to_strs(table: bs4.element.Tag) -> List[str]:
-    return [class_tr_to_str(tr) for tr in table.find_all("tr")]
-
-
-def get_class_description(soup: bs4.BeautifulSoup, class_: str) -> str:
-    a = soup.select(f"tr > td.header > a[href=\"{class_}.html\"]")
-    if len(a) == 1:
-        descriptionTag = a[0].parent.parent.find("td", class_="description")
-        descriptionRaw = "".join([str(content) for content in descriptionTag.contents])
-        return tomd.convert(f"<p>{descriptionRaw}</p>").strip()
-    return None
-
-
-def get_event_description(div: bs4.element.Tag) -> str:
-    for a in div.find_all("a"):
-        a["href"] = BASE_API_URL + a["href"]
-    data = (div.select("div.element-content > p"), div.find("div", class_="detail-content"))
-    paragraphs = []
-    for p in data[0]:
-        contents = p.contents
-        if not (len(contents) == 1 and len(contents[0].strip()) == 0):
-            paragraphs.append(html.unescape(tomd.convert(str(p))))
-    return "\n".join([p.strip().replace("\n", "") for p in paragraphs])
-
-
-def get_event_contents(div: bs4.element.Tag) -> List[str]:
-    contains = div.select("div.detail-content > div")
-    props = []
-    for prop in contains:
-        text = prop.text.replace("  ", " ")
-        searchResult = propEx.search(text).groups()
-        if searchResult[2] is not None:
-            props.append(f"`{searchResult[0]}` - {searchResult[2]}")
-        else:
-            props.append(f"`{searchResult[0]}`")
-    return props
-
 
 class FactorioCog(commands.Cog):
     def __init__(self, bot):
@@ -332,66 +225,77 @@ class FactorioCog(commands.Cog):
         self.bot = bot
         type(self).__name__ = "Factorio Commands"
 
-    @commands.command(aliases=["mod"])
-    async def linkmod(self, ctx: commands.Context, *, modname: str = None):
+    @commands.hybrid_command(aliases=["linkmod"])
+    async def mod(self, ctx: commands.Context, *, modname: str = None):
         """
         Search for a mod in [the Factorio mod portal](https://mods.factorio.com).
         """
+        #Error: no mod name provided
         if not modname:
             em = discord.Embed(title="Error",
                                description="To use the command, you need to enter a mod name to search.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
-        else:
-            em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
-                               description="This may take a bit.",
-                               colour=discord.Colour.gold())
-            bufferMsg = await ctx.send(embed=em)
-            async with ctx.channel.typing():
-                response = await get_soup(f"https://mods.factorio.com/query/{modname.title()}/downloaded/1?version=any")
-                if response[0] == 200:
-                    soup = response[1]
-                    if " 0 " in soup.find("div", class_="grey").string:
-                        em = discord.Embed(title="Error",
-                                           description=f"Could not find \"{modname.title()}\" in mod portal.",
-                                           colour=discord.Colour.red())
-                        await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+            return
+        
+        #Create and send search in progress embed
+        em = discord.Embed(title=f"Searching for \"{modname.title()}\" in mods.factorio.com...",
+                            description="This may take a bit.",
+                            colour=discord.Colour.gold())
+        bufferMsg = await ctx.send(embed=em)
+        async with ctx.channel.typing():
 
-                    elif soup.find_all("div", class_="flex-column"):
-                        if len(soup.find_all("div", class_="flex-column")) > 1:
-                            em = discord.Embed(title=f"Search results for \"{modname}\"",
-                                               colour=discord.Colour.gold())
-                            i = 0
-                            for result in soup.find_all("div", class_="flex-column"):
-                                if i <= 4:
-                                    title = result.find("h2", class_="mb0").find("a")
-                                    if title.string.title() == modname.title():
-                                        em = mod_embed(result)
-                                        break
-                                    author = result.find("a", class_="orange").string
-                                    summary = markdownEx.sub(r"\\\1", result.find("p", class_="pre-line").string)
-                                    em.add_field(name=f"{title.string} (by {author})",
-                                                 value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
-                                    i += 1
+            #Get mod search results page
+            response = await get_soup(f"https://mods.factorio.com/?version=1.1&search_order=updated&query={modname.title()}")
 
-                        else:
-                            em = mod_embed(soup.find("div", class_="flex-column"))
+            #Error: bad response
+            if response[0] != 200:
+                em = discord.Embed(title="Error",
+                                    description="Couldn't reach mods.factorio.com.",
+                                    colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                return
+        
+            soup = response[1]
 
-                        await bufferMsg.edit(embed=em)
-                else:
-                    em = discord.Embed(title="Error",
-                                       description="Couldn't reach mods.factorio.com.",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+            #Error: no results
+            if " 0 " in soup.find("div", class_="grey").string:
+                em = discord.Embed(title="Error",
+                                    description=f"Could not find \"{modname.title()}\" in mod portal.",
+                                    colour=discord.Colour.red())
+                await bufferMsg.edit(embed=em) if ctx.prefix is not None else await bufferMsg.delete()
+                return
 
-    @commands.command()
+            #Multiple results
+            if len(soup.find_all("div", class_="flex-column")) > 1:
+                em = discord.Embed(title=f"Search results for \"{modname}\"",
+                                    colour=discord.Colour.gold())
+                i = 0
+                for result in soup.find_all("div", class_="flex-column"):
+                    if i <= 4:
+                        title = result.find("h2", class_="mb0").find("a")
+                        if title.string.title() == modname.title():
+                            em = mod_embed(result)
+                            break
+                        author = result.find("a", class_="orange").string
+                        summary = markdownEx.sub(r"\\\1", result.find("p", class_="pre-line").string)
+                        em.add_field(name=f"{title.string} (by {author})",
+                                        value=f"{summary} [*Read More*](https://mods.factorio.com/mods{title['href']})")
+                        i += 1
+            #Single result
+            else:
+                em = mod_embed(soup.find("div", class_="flex-column"))
+
+            await bufferMsg.edit(embed=em)
+
+    @commands.hybrid_command()
     async def wiki(self, ctx: commands.Context, *, searchterm: str = None):
         """
         Searches for a term in the [official Factorio wiki](https://wiki.factorio.com/).
         """
         await process_wiki(ctx, searchterm)
 
-    @commands.command()
+    @commands.hybrid_command()
     async def fff(self, ctx: commands.Context, number: str = None):
         """
         Links an fff with the number provided.
@@ -428,142 +332,6 @@ class FactorioCog(commands.Cog):
         else:
             await bufferMsg.edit(embed=em)
 
-    @commands.command(name="0.17", aliases=[".17"])
-    async def dot17(self, ctx: commands.Context):
-        """
-        Returns info about the release date of 0.17.
-        """
-        await ctx.invoke(self.bot.get_command("faq"), query="0.17")
 
-    @commands.command()
-    async def api(self, ctx: commands.Context, *, query: str = None):
-        """
-        Searches the [API documentation](https://lua-api.factorio.com/latest/) for the given query.
-        If no query is given, gives a link to the documentation.
-        """
-        if query is None:
-            em = discord.Embed(title="Latest API documentation",
-                               url=BASE_API_URL,
-                               colour=discord.Colour.gold())
-            await ctx.send(embed=em)
-            return
-        em = discord.Embed(title="Retrieving latest API documentation",
-                           description="This shouldn't take long.",
-                           colour=discord.Colour.gold())
-        bufferMsg = await ctx.send(embed=em)
-        processResult = process_query(query)
-        if processResult[0] == "define":
-            response = await get_soup(BASE_API_URL + "defines.html")
-            if response[0] == 200:
-                fullName = f"defines.{'.'.join(processResult[1])}"
-                tag = response[1].find(id=fullName)
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find `{query}` in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                tagType = str(tag).split(" ")[0][1:]  # For example, <div ....
-                if tagType == "div":
-                    contents = tag.find("div", class_="element-content").find("p").contents
-                    description = ""
-                    if len(contents) > 0:
-                        if len(contents) > 1 and "\n" not in contents[0]:
-                            for a in tag.find_all("a"):
-                                a["href"] = BASE_API_URL + a["href"]
-                            description = tomd.convert(f"<p>{''.join([str(item) for item in contents])}</p>").strip() + "\n"
-                        else:
-                            description = contents[0].split('\n')[0].strip() + "\n"
-                    tables = tag.find_all("table", class_="brief-members")
-                    for table in tables:
-                        data = define_table_to_strs(table)
-                        for tr in data:
-                            description += tr + "\n"
-                else:  # Since the tag can be only a div or a tr
-                    description = define_tr_to_str(tag)
-                if len(description) > 2048:
-                    em = discord.Embed(title="Result too long for embedding",
-                                       colour=discord.Colour.gold())
-                else:
-                    em = discord.Embed(title=fullName,
-                                       description=description,
-                                       colour=discord.Colour.gold())
-                em.url = f"{BASE_API_URL}defines.html#{fullName}"
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Could not reach lua-api.factorio.com.",
-                                   colour=discord.Colour.red())
-        elif processResult[0] == "class":
-            response = await get_soup(BASE_API_URL + "Classes.html")
-            if response[0] == 200:
-                tag = response[1].find("div", id=f"{processResult[1]}.brief")
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find `{query}` in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                table = tag.find("table", class_="brief-members")
-                data = class_table_to_strs(table)
-                description = get_class_description(response[1], processResult[1])
-                if description is not None:
-                    description += "\n"
-                else:
-                    description = ""
-                description += "\n".join(data)
-                if len(description) > 2048:
-                    em = discord.Embed(title="Result too long for embedding",
-                                       colour=discord.Colour.gold())
-                else:
-                    em = discord.Embed(title=query,
-                                       description=description,
-                                       colour=discord.Colour.gold())
-                em.url = f"{BASE_API_URL}{query}.html"
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Could not reach lua-api.factorio.com.",
-                                   colour=discord.Colour.red())
-        elif processResult[0] == "class+property":
-            response = await get_soup(BASE_API_URL + "Classes.html")
-            if response[0] == 200:
-                class_ = processResult[1][0]
-                property_ = processResult[1][1]
-                tag = response[1].find("a", href=f"{class_}.html#{class_}.{property_}")
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find `{query}` in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                tr = tag.parent.parent.parent
-                description = class_tr_to_str(tr)
-                em = discord.Embed(title=query,
-                                   description=description,
-                                   colour=discord.Colour.gold())
-                em.url = f"{BASE_API_URL}{class_}.html#{class_}.{property_}"
-            else:
-                em = discord.Embed(title="Error",
-                                   description="Could not reach lua-api.factorio.com.",
-                                   colour=discord.Colour.red())
-        else:  # event
-            response = await get_soup(BASE_API_URL + "events.html")
-            if response[0] == 200:
-                tag = response[1].find("div", id=query)
-                if tag is None:
-                    em = discord.Embed(title="Error",
-                                       description=f"Could not find {query} in API",
-                                       colour=discord.Colour.red())
-                    await bufferMsg.edit(embed=em)
-                    return
-                em = discord.Embed(title=query,
-                                   description=get_event_description(tag),
-                                   url=f"{BASE_API_URL}events.html#{query}",
-                                   colour=discord.Colour.gold())
-                contents = get_event_contents(tag)
-                if len(contents) > 0:
-                    em.add_field(name="Contains", value="\n".join(contents), inline=False)
-        await bufferMsg.edit(embed=em)
-
-
-def setup(bot):
-    bot.add_cog(FactorioCog(bot))
+async def setup(bot):
+    await bot.add_cog(FactorioCog(bot))

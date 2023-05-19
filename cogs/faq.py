@@ -2,7 +2,9 @@ import datetime
 import pytz
 
 import discord
+from discord import app_commands
 from discord.ext import commands
+from discord.ext import tasks
 from fuzzywuzzy import fuzz
 
 from utils import customchecks, sql
@@ -35,20 +37,11 @@ async def embed_faq(ctx: commands.Context, bot: commands.AutoShardedBot, query: 
     if not color:
         color = discord.Colour.gold()
     image = None if queryRow[3] is None else str(queryRow[3])
-    author_id = int(queryRow[4])
-    author = bot.get_user(author_id) or await bot.fetch_user(author_id)
-    authorName = getattr(await lazily_fetch_member(ctx.guild, author.id), "display_name", None)
-    if authorName is not None and author.avatar:
-        authorPic = f"https://cdn.discordapp.com/avatars/{author.id}/{author.avatar}.png?size=64"
-    else:
-        authorPic = "https://cdn.discordapp.com/embed/avatars/0.png"
     em = discord.Embed(title=title,
                        description="" if queryRow[2] is None else str(queryRow[2]),
-                       timestamp=datetime.datetime.strptime(queryRow[5], "%Y-%m-%d %H:%M:%S.%f%z"),
                        colour=color)
     if image:
         em.set_image(url=image)
-    em.set_author(name=authorName or "Unknown", icon_url=authorPic)
     return em
 
 
@@ -68,60 +61,87 @@ async def check_image(ctx: commands.Context, bot: commands.AutoShardedBot, title
                            colour=discord.Colour.red())
         await ctx.send(embed=em)
         return False
+    
+async def list_all_tags(ctx: commands.Context, bot: commands.AutoShardedBot):
+    faqList = await faqdb(ctx, keys=True)
+    if len(faqList) > 0:
+        em = discord.Embed(title="List of FAQ tags",
+                            description=", ".join(faqList).title(),
+                            colour=discord.Colour.gold())
+    else:
+        em = discord.Embed(title="Error",
+                            description="This server does not have any defined FAQ tags.",
+                            colour=discord.Colour.red())
+    
+    await ctx.send(embed=em)
 
+
+async def send_faq_entry(ctx: commands.Context, bot: commands.AutoShardedBot, query: str):
+    if query in await faqdb(ctx, keys=True):
+        em = await embed_faq(ctx, bot, query)
+
+    else:
+        closeItems = []
+        for item in await faqdb(ctx, keys=True):
+            itemRatio = fuzz.ratio(query, item)
+            if itemRatio >= 75:
+                closeItems.append((itemRatio, item.title()))
+        if len(closeItems) == 0:
+            em = discord.Embed(title="Error",
+                                description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags." + "\n" +
+                                            f"Would you like to search [the wiki](https://wiki.factorio.com/index.php?search={query.replace(' ', '%20')})?",
+                                colour=discord.Colour.red())
+            em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{bot.user.id}/{bot.user.avatar}.png?size=64")
+        elif len(closeItems) == 1:
+            em = await embed_faq(ctx, bot, closeItems[0][1].lower(),
+                                    title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0][1]}\"?",
+                                    color=discord.Colour.orange())
+        else:
+            em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
+                                description=f"Did you mean {', '.join([item[1] for item in closeItems])}?",
+                                colour=discord.Colour.orange())
+    await ctx.send(embed=em)
 
 class FAQCog(commands.Cog):
     def __init__(self, bot):
         super().__init__()
         self.bot = bot
+        self.update_faq_cache.start()
         type(self).__name__ = "Frequently Asked Questions"
+    
+    def cog_unload(self) -> None:
+        self.update_faq_cache.cancel()
 
-    @commands.group(name="faq", aliases=["tag", "tags", "faw", "FAQ"], invoke_without_command=True)
+    @tasks.loop(hours=3)
+    async def update_faq_cache(self):
+        self.tags = {}
+        servers = [int(result[0]) for result in await sql.fetch("SELECT serverid FROM servers")]
+        for server in servers:
+            self.tags[server] = [result[0] for result in await sql.fetch("SELECT title FROM faq WHERE serverid=? ORDER BY title", str(server))]
+
+    @commands.hybrid_group(name="faq", aliases=["tag", "tags", "faw", "FAQ"], fallback="list", with_app_command=True)
     async def faq_command(self, ctx: commands.Context, *, query: str = ""):
         """
-        Shows the list of available FAQ tags.
+        Shows the list of available FAQ tags or returns the tag with the given name.
         """
         query = query.lower()
         if not query:
-            faqList = await faqdb(ctx, keys=True)
-            if len(faqList) > 0:
-                em = discord.Embed(title="List of FAQ tags",
-                                   description=", ".join(faqList).title(),
-                                   colour=discord.Colour.gold())
-            else:
-                em = discord.Embed(title="Error",
-                                   description="This server does not have any defined FAQ tags.",
-                                   colour=discord.Colour.red())
+            await list_all_tags(ctx, self.bot)
+        
+        else: 
+            await send_faq_entry(ctx, self.bot, query)
 
-        elif query in await faqdb(ctx, keys=True):
-            em = await embed_faq(ctx, self.bot, query)
-
-        else:
-            closeItems = []
-            for item in await faqdb(ctx, keys=True):
-                itemRatio = fuzz.ratio(query, item)
-                if itemRatio >= 75:
-                    closeItems.append((itemRatio, item.title()))
-            if len(closeItems) > 0:
-                if len(closeItems) == 1:
-                    em = await embed_faq(ctx, self.bot, closeItems[0][1].lower(),
-                                         title=f"Could not find \"{query.title()}\" in FAQ tags. Did you mean \"{closeItems[0][1]}\"?",
-                                         color=discord.Colour.orange())
-                else:
-                    em = discord.Embed(title=f"Could not find \"{query.title()}\" in FAQ tags.",
-                                       description=f"Did you mean {', '.join([item[1] for item in closeItems])}?",
-                                       colour=discord.Colour.orange())
-            else:
-                em = discord.Embed(title="Error",
-                                   description=f"Could not find \"{query.title()}\" or any similarly named tags in FAQ tags." + "\n" +
-                                               f"Would you like to search [the wiki](https://wiki.factorio.com/index.php?search={query.replace(' ', '%20')})?",
-                                   colour=discord.Colour.red())
-                em.set_footer(text=f"To see the list of all available FAQ tags, use {ctx.prefix}faq", icon_url=f"https://cdn.discordapp.com/avatars/{self.bot.user.id}/{self.bot.user.avatar}.png?size=64")
-        await ctx.send(embed=em)
+    @faq_command.command(name="tag")
+    async def faq_tag(self, ctx: commands.Context, *, query: str):
+        """
+        Shows the list of available FAQ tags or returns the tag with the given name.
+        """
+        query = query.lower()
+        await send_faq_entry(ctx, self.bot, query)
 
     @faq_command.command(name="add", aliases=["edit", "new"])
     @customchecks.is_mod()
-    async def faq_add(self, ctx: commands.Context, title: str, *, content: str = ""):
+    async def faq_add(self, ctx: commands.Context, title: str, *, content: str = "", image: discord.Attachment = None):
         """
         Add a new tag to the FAQ tags.
         Can add an image by either attaching it to the message, or using ~~ imageurl at the end.
@@ -182,6 +202,7 @@ class FAQCog(commands.Cog):
                                   content, image, timestamp, str(ctx.message.guild.id), title)
                 embedTitle = f"Successfully edited \"{title.title()}\" in database"
             await ctx.send(embed=await embed_faq(ctx, self.bot, title, embedTitle, discord.Colour.dark_green()))
+        await self.update_faq_cache()
 
     @faq_command.command(name="remove", aliases=["delete"])
     @customchecks.is_mod()
@@ -197,15 +218,18 @@ class FAQCog(commands.Cog):
                                  title=f"Successfully removed \"{title.title()}\" from FAQ tags.",
                                  color=discord.Colour.red())
             await sql.execute("DELETE FROM faq WHERE serverid=? AND title=?", str(ctx.message.guild.id), title)
+            await sql.execute("DELETE FROM faq WHERE serverid=? and link=?", str(ctx.message.guild.id), title)
             await ctx.send(embed=em)
         else:
             em = discord.Embed(title="Error",
                                description="Query not in FAQ tags.",
                                colour=discord.Colour.red())
             await ctx.send(embed=em)
+        await self.update_faq_cache()
 
     @faq_command.command(name="link")
     @customchecks.is_mod()
+    @app_commands.rename(title="new_title", link="link_to")
     async def faq_link(self, ctx: commands.Context, title: str, *, link: str):
         """
         Makes a shortcut tag in the list of FAQ tags.
@@ -225,7 +249,16 @@ class FAQCog(commands.Cog):
                                description="The tag to link to does not exist in the list of FAQ tags.",
                                colour=discord.Colour.red())
         await ctx.send(embed=em)
+        await self.update_faq_cache()
+    
+    @faq_tag.autocomplete("query")
+    @faq_command.autocomplete("query")
+    @faq_remove.autocomplete("title")
+    @faq_link.autocomplete("link")
+    async def faq_tag_autocomplete(self, ctx: commands.Context, current: str):
+        server = ctx.guild.id
+        return [app_commands.Choice(name=tag, value=tag) for tag in self.tags[server] if current.lower() in tag.lower()][0:25]
 
 
-def setup(bot):
-    bot.add_cog(FAQCog(bot))
+async def setup(bot):
+    await bot.add_cog(FAQCog(bot))
